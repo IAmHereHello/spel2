@@ -1,458 +1,1340 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>180 Graden Shooter</title>
+    <title>The 180 Degree Shooter - Ultimate Edition</title>
     <style>
         body {
             margin: 0;
-            padding: 0;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #2a2a4e 0%, #1a1a2e 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            user-select: none;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            display: flex;
+            gap: 20px;
+        }
+
+        .ui-box {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        #score-display {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4cc9f0;
+            text-shadow: 0 0 10px rgba(76, 201, 240, 0.5);
+        }
+
+        #level-display {
+            font-size: 14px;
+            color: #ccc;
+            margin-top: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #powerup-display {
+            font-size: 20px;
+            color: #ffbe0b;
+            font-weight: bold;
+            display: none;
+        }
+
+        /* ITEMS BAR */
+        #item-bar {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            pointer-events: auto;
+            display: flex;
+            gap: 20px;
+        }
+
+        .item-slot {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            background-color: #2c3e50;
-            color: #ecf0f1;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            height: 100vh;
+            opacity: 1;
+            transition: opacity 0.3s;
         }
-        #game-container {
+
+        .item-slot.locked {
+            opacity: 0.5;
+            filter: grayscale(1);
+            pointer-events: none;
+        }
+
+        .item-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #444;
+            border: 4px solid #666;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 32px;
+            cursor: not-allowed;
             position: relative;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s;
             overflow: hidden;
         }
-        canvas {
-            display: block;
-            background: #34495e;
-            cursor: crosshair;
+
+        /* Ready States */
+        .item-btn.ready-fire {
+            background: radial-gradient(circle, #ff9f1c, #d00000);
+            border-color: #ffba08;
+            cursor: pointer;
+            box-shadow: 0 0 30px #d00000;
+            animation: pulse 2s infinite;
         }
-        #ui-layer {
+
+        .item-btn.ready-laser {
+            background: radial-gradient(circle, #4cc9f0, #4361ee);
+            border-color: #4cc9f0;
+            cursor: pointer;
+            box-shadow: 0 0 30px #4361ee;
+            animation: pulse 2s infinite;
+        }
+
+        .item-btn.active-laser {
+            background: white;
+            box-shadow: 0 0 50px white;
+            border-color: white;
+            transform: scale(1.1);
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .cooldown-overlay {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            pointer-events: none;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* Height animates */
+            background: rgba(0, 0, 0, 0.6);
+            transition: height 0.1s linear;
         }
-        #score {
-            font-size: 24px;
+
+        .item-label {
+            margin-top: 10px;
             font-weight: bold;
+            text-shadow: 0 0 5px black;
+            color: #aaa;
+            font-size: 12px;
+            text-transform: uppercase;
         }
+
+        .item-slot.locked .item-label {
+            content: "LOCKED";
+        }
+
+        .lock-icon {
+            display: none;
+            position: absolute;
+            font-size: 24px;
+        }
+
+        .item-slot.locked .lock-icon {
+            display: block;
+        }
+
         #game-over-screen {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(44, 62, 80, 0.9);
             display: none;
-            flex-direction: column;
-            align-items: center;
             justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
             z-index: 10;
         }
-        #game-over-screen h1 {
-            font-size: 48px;
+
+        h1 {
+            font-size: 64px;
             margin-bottom: 10px;
-            color: #e74c3c;
+            background: linear-gradient(to right, #f72585, #7209b7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            text-shadow: 0 0 30px rgba(247, 37, 133, 0.5);
         }
-        #final-score {
-            font-size: 24px;
-            margin-bottom: 30px;
-        }
+
         button {
-            padding: 12px 24px;
-            font-size: 18px;
-            background-color: #27ae60;
-            color: white;
+            padding: 15px 40px;
+            font-size: 24px;
+            background: linear-gradient(135deg, #4cc9f0, #4361ee);
             border: none;
-            border-radius: 4px;
+            border-radius: 50px;
+            color: white;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: all 0.3s;
+            font-weight: bold;
+            box-shadow: 0 0 15px rgba(76, 201, 240, 0.4);
         }
+
         button:hover {
-            background-color: #2ecc71;
+            transform: scale(1.1);
+            box-shadow: 0 0 30px rgba(76, 201, 240, 0.8);
+        }
+
+        .level-up-notif {
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            font-weight: bold;
+            color: #ffbe0b;
+            text-shadow: 0 0 20px rgba(255, 190, 11, 0.8);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s, transform 0.5s;
+        }
+
+        .level-up-notif.active {
+            opacity: 1;
+            transform: translate(-50%, -80%);
         }
     </style>
 </head>
+
 <body>
 
-<div id="game-container">
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
     <div id="ui-layer">
-        <div id="score">Score: 0</div>
+        <div class="ui-box">
+            <div id="score-display">Score: 0</div>
+            <div id="level-display">Level 1</div>
+        </div>
+        <div class="ui-box" id="powerup-box" style="display:none;">
+            <div id="powerup-display"></div>
+        </div>
     </div>
+
+    <div id="item-bar">
+        <!-- Fire Amulet (Lvl 4) -->
+        <div id="slot-fire" class="item-slot locked">
+            <div id="btn-fire" class="item-btn" onclick="activateFire()">
+                <span class="icon">🔥</span>
+                <span class="lock-icon">🔒</span>
+                <div id="overlay-fire" class="cooldown-overlay"></div>
+            </div>
+            <div id="label-fire" class="item-label">Lvl 4</div>
+        </div>
+
+        <!-- Laser Amulet (Lvl 6) -->
+        <div id="slot-laser" class="item-slot locked">
+            <div id="btn-laser" class="item-btn" onclick="activateLaser()">
+                <span class="icon">⚡</span>
+                <span class="lock-icon">🔒</span>
+                <div id="overlay-laser" class="cooldown-overlay"></div>
+            </div>
+            <div id="label-laser" class="item-label">Lvl 6</div>
+        </div>
+    </div>
+
+    <div id="level-up-msg" class="level-up-notif">LEVEL UP!</div>
+
     <div id="game-over-screen">
-        <h1>Game Over!</h1>
-        <div id="final-score">Je score: 0</div>
-        <button id="restart-btn">Opnieuw Spelen</button>
+        <h1 id="game-over-title">GAME OVER</h1>
+        <div style="font-size: 28px; margin-bottom: 40px; color: #ccc;" id="final-score">Score: 0</div>
+        <button onclick="resetGame()">Play Again</button>
     </div>
-</div>
 
-<script>
-// ================= CONFIGURATIE =================
-const config = {
-    ballRadius: 25,
-    ballSpeed: 0.8,         // Snelheid van de slang
-    spawnRate: 120,         // Hoeveel frames tussen elke nieuwe bal
-    projectileSpeed: 12,    // Snelheid van geschoten bal
-    colors: {
-        snakeBall: '#3498db',
-        projectile: '#e67e22',
-        shooter: '#95a5a6',
-        path: '#2c3e50',
-        text: '#ffffff',
-        correctHit: '#2ecc71',
-        wrongHit: '#e74c3c'
-    }
-};
+    <canvas id="gameCanvas"></canvas>
 
-// ================= GLOBALE VARIABELEN =================
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const scoreElement = document.getElementById('score');
-const gameOverScreen = document.getElementById('game-over-screen');
-const finalScoreElement = document.getElementById('final-score');
-const restartBtn = document.getElementById('restart-btn');
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
 
-let gameState = {
-    score: 0,
-    isRunning: true,
-    frameCount: 0,
-    mouseX: canvas.width / 2,
-    mouseY: canvas.height / 2
-};
+        // --- Game Config ---
+        const config = {
+            ballRadius: 32,
+            ballSpeed: 0.5,
+            backSpeed: 3.0,
+            ballSpacing: 58,
+            shotSpeed: 20,
+            spawnInterval: 48,
+            shootDelay: 15,
+            powerupChance: 0.08,
 
-// Het pad dat de ballen volgen (een simpele curve van linksboven naar rechtsonder)
-const pathPoints = [];
-function generatePath() {
-    // We gebruiken een Bézier-achtige curve voor een soepel pad
-    let start = {x: 0, y: 100};
-    let cp1 = {x: 200, y: 50}; // Controlepunt 1
-    let cp2 = {x: 600, y: 550}; // Controlepunt 2
-    let end = {x: 800, y: 500};
+            // Fire Amulet
+            fireCooldownMax: 1200,
+            fireChargeReq: 10,
 
-    for (let t = 0; t <= 1; t += 0.002) {
-        // Cubische Bézier formule
-        let x = Math.pow(1-t, 3)*start.x + 3*Math.pow(1-t, 2)*t*cp1.x + 3*(1-t)*Math.pow(t, 2)*cp2.x + Math.pow(t, 3)*end.x;
-        let y = Math.pow(1-t, 3)*start.y + 3*Math.pow(1-t, 2)*t*cp1.y + 3*(1-t)*Math.pow(t, 2)*cp2.y + Math.pow(t, 3)*end.y;
-        pathPoints.push({x: x, y: y});
-    }
-}
+            // Laser Amulet
+            laserCooldownMax: 2400, // 40s
+            laserDuration: 600      // 10s
+        };
 
-let snake = [];        // Array voor de ballen op het pad
-let projectiles = [];  // Array voor geschoten ballen
-let shooter = {
-    x: canvas.width / 2,
-    y: canvas.height / 2,
-    angle: 0,
-    currentAmmo: 0,
-    nextAmmo: 0
-};
+        // --- MATH DEFINITIONS ---
+        const ANGLE_DEFS = [
+            { a: 50, b: 60, c: 70 },
+            { a: 90, b: 40, c: 50 },
+            { a: 30, b: 30, c: 120 },
+            { a: 45, b: 45, c: 90 },
+            { a: 60, b: 60, c: 60 },
+            { a: 20, b: 80, c: 80 },
+            { a: 100, b: 40, c: 40 }
+        ];
 
-// ================= HULPFUNCTIES =================
+        let COLOR_POOL = [
+            '#FF595E', '#FFCA3A', '#8AC926', '#1982C4', '#6A4C93', '#FB5607', '#FF006E'
+        ];
 
-// Genereer een willekeurig veelvoud van 5 tussen min en max
-function randomAngle(min, max) {
-    let range = (max - min) / 5;
-    return min + Math.floor(Math.random() * range) * 5;
-}
+        let typeColorMap = [];
 
-// Genereer een geldige set van 3 hoeken die samen 180 zijn
-function generateTriangleAngles() {
-    let a = randomAngle(20, 100);
-    // Zorg dat b + a < 175 zodat c minstens 5 is
-    let b = randomAngle(20, 175 - a);
-    let c = 180 - a - b;
-    // Shuffle de hoeken zodat we willekeurig weten welke de speler krijgt
-    let angles = [a, b, c];
-    angles.sort(() => Math.random() - 0.5);
-    return angles;
-}
+        const POWERUPS = [
+            { type: 'flame', icon: '🔥', duration: 0 },
+            { type: 'freeze', icon: '❄️', duration: 300 },
+            { type: 'reverse', icon: '⏪', duration: 180 }
+        ];
 
-// Bereken afstand tussen twee punten
-function distance(x1, y1, x2, y2) {
-    return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-}
+        // --- State ---
+        let balls = [];
+        let projectiles = [];
+        let particles = [];
+        let pathPoints = [];
+        let shooter = {
+            x: 0, y: 0, angle: 0,
+            nextBall: null,
+            queue: [],
+            cooldown: 0
+        };
+        let score = 0;
+        let gameState = 'playing';
+        let mouseX = 0;
+        let mouseY = 0;
+        let spawnTimer = 0;
 
-// ================= SPEL LOGICA =================
+        let activeTypeCount = 3;
+        let currentLevel = 1;
 
-class SnakeBall {
-    constructor(pathIndex) {
-        this.pathIndex = pathIndex; // Positie op het pad
-        this.radius = config.ballRadius;
-        
-        // Genereer de wiskunde
-        let angles = generateTriangleAngles();
-        this.angleA = angles[0];
-        this.angleB = angles[1];
-        this.neededAngle = angles[2]; // De hoek die de speler moet schieten
-        
-        this.x = pathPoints[0].x;
-        this.y = pathPoints[0].y;
-        this.color = config.colors.snakeBall;
-        this.markedForDeletion = false;
-    }
+        // Effect State
+        let freezeTimer = 0;
+        let reverseTimer = 0;
 
-    update() {
-        // Beweeg langs het pad
-        this.pathIndex += config.ballSpeed;
-        
-        // Check Game Over
-        if (this.pathIndex >= pathPoints.length - 1) {
-            gameOver();
-            return;
+        // Items State
+        let fireState = { unlocked: false, cooldown: 0, charge: 0 };
+        let laserState = { unlocked: false, cooldown: 0, active: false, timer: 0, tick: 0 };
+
+        // --- Math Helpers ---
+        function rnd(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
         }
 
-        // Update positie op basis van nieuwe index
-        let indexFloor = Math.floor(this.pathIndex);
-        this.x = pathPoints[indexFloor].x;
-        this.y = pathPoints[indexFloor].y;
-    }
-
-    draw() {
-        drawBall(this.x, this.y, this.radius, this.color, `${this.angleA}, ${this.angleB}`);
-    }
-}
-
-class Projectile {
-    constructor(x, y, angle, value) {
-        this.x = x;
-        this.y = y;
-        this.radius = config.ballRadius * 0.8; // Iets kleiner
-        this.dx = Math.cos(angle) * config.projectileSpeed;
-        this.dy = Math.sin(angle) * config.projectileSpeed;
-        this.value = value;
-        this.color = config.colors.projectile;
-        this.markedForDeletion = false;
-    }
-
-    update() {
-        this.x += this.dx;
-        this.y += this.dy;
-
-        // Verwijder als buiten beeld
-        if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
-            this.markedForDeletion = true;
-        }
-    }
-
-    draw() {
-        drawBall(this.x, this.y, this.radius, this.color, this.value.toString());
-    }
-}
-
-function initGame() {
-    generatePath();
-    snake = [];
-    projectiles = [];
-    gameState.score = 0;
-    gameState.frameCount = 0;
-    gameState.isRunning = true;
-    scoreElement.textContent = "Score: 0";
-    gameOverScreen.style.display = "none";
-    
-    // Initialiseer munitie
-    shooter.currentAmmo = generateTriangleAngles()[Math.floor(Math.random()*3)];
-    shooter.nextAmmo = generateTriangleAngles()[Math.floor(Math.random()*3)];
-
-    requestAnimationFrame(gameLoop);
-}
-
-function gameOver() {
-    gameState.isRunning = false;
-    finalScoreElement.textContent = "Je score: " + gameState.score;
-    gameOverScreen.style.display = "flex";
-}
-
-function update() {
-    if (!gameState.isRunning) return;
-    gameState.frameCount++;
-
-    // Spawn nieuwe ballen in de slang
-    if (gameState.frameCount % config.spawnRate === 0) {
-        // Alleen spawnen als de laatste bal ver genoeg weg is (simpele check om overlap bij start te voorkomen)
-        if (snake.length === 0 || snake[snake.length-1].pathIndex > config.ballRadius * 2.2) {
-             snake.push(new SnakeBall(0));
-        }
-    }
-
-    // Update shooter hoek
-    let dx = gameState.mouseX - shooter.x;
-    let dy = gameState.mouseY - shooter.y;
-    shooter.angle = Math.atan2(dy, dx);
-
-    // Update slang
-    snake.forEach(ball => ball.update());
-    
-    // Update projectielen en check botsingen
-    projectiles.forEach(proj => {
-        proj.update();
-        
-        snake.forEach(targetBall => {
-            if (proj.markedForDeletion || targetBall.markedForDeletion) return;
-
-            if (distance(proj.x, proj.y, targetBall.x, targetBall.y) < proj.radius + targetBall.radius) {
-                // BOTSING! Check de wiskunde.
-                let sum = proj.value + targetBall.angleA + targetBall.angleB;
-                
-                if (Math.abs(sum - 180) < 0.1) { // Gebruik kleine marge voor float vergelijking, hoewel we met integers werken is dit veiliger
-                    // Succes! 180 graden gemaakt.
-                    targetBall.markedForDeletion = true;
-                    gameState.score += 100;
-                    scoreElement.textContent = "Score: " + gameState.score;
-                    // Visuele feedback (bal wordt even groen)
-                    targetBall.color = config.colors.correctHit;
-                } else {
-                    // Gefaald. Visuele feedback (bal wordt even rood)
-                    targetBall.color = config.colors.wrongHit;
-                    // Optioneel: strafpunten?
-                    // gameState.score -= 10;
-                }
-                proj.markedForDeletion = true; // Projectiel verdwijnt altijd na een raak schot
+        function shuffleColors() {
+            for (let i = COLOR_POOL.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [COLOR_POOL[i], COLOR_POOL[j]] = [COLOR_POOL[j], COLOR_POOL[i]];
             }
-        });
-    });
-
-    // Verwijder gemarkeerde objecten
-    snake = snake.filter(ball => !ball.markedForDeletion);
-    projectiles = projectiles.filter(proj => !proj.markedForDeletion);
-}
-
-function drawBall(x, y, radius, color, text) {
-    // Cirkel met schaduw effect voor diepte
-    let gradient = ctx.createRadialGradient(x - radius/3, y - radius/3, radius/10, x, y, radius);
-    gradient.addColorStop(0, lightenColor(color, 30));
-    gradient.addColorStop(1, color);
-    
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = gradient;
-    ctx.fill();
-    ctx.strokeStyle = darkenColor(color, 20);
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.closePath();
-
-    // Tekst
-    ctx.fillStyle = config.colors.text;
-    ctx.font = "bold " + (radius * 0.7) + "px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(text, x, y);
-}
-
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Teken het pad (dunne lijn)
-    if (pathPoints.length > 0) {
-        ctx.beginPath();
-        ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
-        for(let i=1; i<pathPoints.length; i++) {
-            ctx.lineTo(pathPoints[i].x, pathPoints[i].y);
+            typeColorMap = [];
+            for (let i = 0; i < ANGLE_DEFS.length; i++) {
+                typeColorMap.push(COLOR_POOL[i]);
+            }
+            projectiles.forEach(p => {
+                p.color = typeColorMap[p.typeIndex];
+            });
         }
-        ctx.strokeStyle = config.colors.path;
-        ctx.lineWidth = config.ballRadius * 2.2; // Pad breedte iets groter dan bal
-        ctx.lineCap = 'round';
-        ctx.stroke();
-        // Teken een dunne lijn in het midden van het pad
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = darkenColor(config.colors.path, 20);
-        ctx.stroke();
-    }
-    
-    // Teken het "gat" aan het einde
-    let endPoint = pathPoints[pathPoints.length - 1];
-    ctx.beginPath();
-    ctx.arc(endPoint.x, endPoint.y, config.ballRadius * 1.5, 0, Math.PI*2);
-    ctx.fillStyle = '#111';
-    ctx.fill();
 
-    // Teken slang
-    snake.forEach(ball => ball.draw());
+        // --- Path Generation ---
+        function generatePath() {
+            pathPoints = [];
+            const w = canvas.width;
+            const h = canvas.height;
+            const steps = 3000;
 
-    // Teken projectielen
-    projectiles.forEach(proj => proj.draw());
+            for (let i = 0; i <= steps; i++) {
+                let t = i / steps;
+                let x, y;
+                const cx = w / 2;
+                const cy = h / 2;
+                const maxR = Math.min(w, h) * 0.45;
+                const loops = 2.5;
+                const angleOffset = Math.PI;
+                const r = maxR * (1 - t);
+                const theta = angleOffset + t * loops * Math.PI * 2;
 
-    // Teken shooter
-    ctx.save();
-    ctx.translate(shooter.x, shooter.y);
-    ctx.rotate(shooter.angle);
-    
-    // Kanon loop
-    ctx.fillStyle = shooter.color;
-    ctx.fillRect(0, -15, 40, 30); 
-    
-    // Shooter basis
-    ctx.beginPath();
-    ctx.arc(0, 0, 30, 0, Math.PI * 2);
-    ctx.fillStyle = darkenColor(shooter.color, 20);
-    ctx.fill();
-    ctx.restore();
+                x = cx + r * Math.cos(theta);
+                y = cy + r * Math.sin(theta);
+                pathPoints.push({ x, y });
+            }
+        }
 
-    // Teken huidige munitie OP de shooter
-    drawBall(shooter.x, shooter.y, config.ballRadius * 0.8, config.colors.projectile, shooter.currentAmmo.toString());
-    
-    // Teken volgende munitie (kleiner, ernaast)
-    drawBall(shooter.x + 50, shooter.y + 50, config.ballRadius * 0.5, darkenColor(config.colors.projectile, 10), shooter.nextAmmo.toString());
-    ctx.fillStyle = config.colors.text;
-    ctx.font = "14px Arial";
-    ctx.fillText("Next", shooter.x + 50, shooter.y + 25);
+        // --- Classes ---
 
-}
+        class Ball {
+            constructor(distance, typeIndex = -1) {
+                this.distance = distance;
+                this.active = true;
 
-function gameLoop() {
-    update();
-    draw();
-    if (gameState.isRunning) {
-        requestAnimationFrame(gameLoop);
-    }
-}
+                if (typeIndex === -1) {
+                    typeIndex = rnd(0, activeTypeCount - 1);
+                }
+                this.typeIndex = typeIndex;
+                const type = ANGLE_DEFS[typeIndex];
 
-// ================= EVENT LISTENERS =================
+                this.angles = [type.a, type.b];
+                this.requiredAngle = type.c;
 
-canvas.addEventListener('mousemove', (e) => {
-    let rect = canvas.getBoundingClientRect();
-    gameState.mouseX = e.clientX - rect.left;
-    gameState.mouseY = e.clientY - rect.top;
-});
+                this.powerup = null;
+                if (Math.random() < config.powerupChance) {
+                    this.powerup = POWERUPS[rnd(0, POWERUPS.length - 1)];
+                }
+            }
 
-canvas.addEventListener('mousedown', (e) => {
-    if (!gameState.isRunning) return;
-    
-    // Schiet!
-    projectiles.push(new Projectile(shooter.x, shooter.y, shooter.angle, shooter.currentAmmo));
-    
-    // Herlaad munitie
-    shooter.currentAmmo = shooter.nextAmmo;
-    // Genereer nieuwe 'next' munitie. We pakken een willekeurige hoek uit een nieuwe geldige driehoek.
-    shooter.nextAmmo = generateTriangleAngles()[Math.floor(Math.random()*3)];
-});
+            draw() {
+                if (!this.active) return;
+                const pos = getPositionAtDistance(this.distance);
+                if (!pos) return;
 
-restartBtn.addEventListener('click', initGame);
+                const currentColor = typeColorMap[this.typeIndex];
 
-// Hulpfuncties voor kleuren (om het iets mooier te maken zonder externe assets)
-function lightenColor(col, amt) {
-    return adjustColor(col, amt);
-}
-function darkenColor(col, amt) {
-    return adjustColor(col, -amt);
-}
-function adjustColor(col, amt) {
-    var usePound = false;
-    if (col[0] == "#") { col = col.slice(1); usePound = true; }
-    var num = parseInt(col,16);
-    var r = (num >> 16) + amt; if (r > 255) r = 255; else if  (r < 0) r = 0;
-    var b = ((num >> 8) & 0x00FF) + amt; if (b > 255) b = 255; else if  (b < 0) b = 0;
-    var g = (num & 0x0000FF) + amt; if (g > 255) g = 255; else if (g < 0) g = 0;
-    return (usePound?"#":"") + (g | (b << 8) | (r << 16)).toString(16);
-}
+                // Main Circle
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, config.ballRadius, 0, Math.PI * 2);
+                ctx.fillStyle = currentColor;
+                ctx.fill();
 
-// Start het spel
-initGame();
+                // 3D Effect
+                let grad = ctx.createRadialGradient(
+                    pos.x - config.ballRadius * 0.3,
+                    pos.y - config.ballRadius * 0.3,
+                    config.ballRadius * 0.1,
+                    pos.x,
+                    pos.y,
+                    config.ballRadius
+                );
+                grad.addColorStop(0, 'rgba(255,255,255,0.4)');
+                grad.addColorStop(1, 'rgba(0,0,0,0.2)');
+                ctx.fillStyle = grad;
+                ctx.fill();
 
-</script>
+                // Highlight
+                ctx.beginPath();
+                ctx.arc(pos.x - config.ballRadius * 0.4, pos.y - config.ballRadius * 0.4, config.ballRadius * 0.15, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Text or Icon
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                if (this.powerup) {
+                    ctx.font = '24px Arial';
+                    ctx.fillText(this.powerup.icon, pos.x, pos.y - 12);
+
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 16px "Segoe UI", Arial';
+                    ctx.fillText(`${this.angles[0]},${this.angles[1]}`, pos.x, pos.y + 14);
+                } else {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 20px "Segoe UI", Arial';
+                    ctx.fillText(`${this.angles[0]},${this.angles[1]}`, pos.x, pos.y);
+                }
+            }
+        }
+
+        class Projectile {
+            constructor(x, y, angle, typeIndex) {
+                this.x = x;
+                this.y = y;
+                this.vx = Math.cos(angle) * config.shotSpeed;
+                this.vy = Math.sin(angle) * config.shotSpeed;
+
+                this.typeIndex = typeIndex;
+                const type = ANGLE_DEFS[typeIndex];
+                this.value = type.c;
+                this.color = typeColorMap[typeIndex];
+
+                this.radius = config.ballRadius;
+                this.active = true;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
+                    this.active = false;
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+
+                let grad = ctx.createRadialGradient(
+                    this.x - this.radius * 0.3,
+                    this.y - this.radius * 0.3,
+                    this.radius * 0.1,
+                    this.x,
+                    this.y,
+                    this.radius
+                );
+                grad.addColorStop(0, 'rgba(255,255,255,0.9)');
+                grad.addColorStop(0.5, 'rgba(200,200,255,0.3)');
+                grad.addColorStop(1, 'rgba(255,255,255,0.1)');
+
+                ctx.fillStyle = grad;
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(200, 200, 255, 0.8)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 22px "Segoe UI", Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                ctx.shadowBlur = 4;
+                ctx.fillText(this.value + '°', this.x, this.y);
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 5 + 2;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.life = 1.0;
+                this.color = color;
+                this.size = Math.random() * 5 + 2;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= 0.02;
+                this.size *= 0.95;
+            }
+
+            draw() {
+                ctx.globalAlpha = Math.max(0, this.life);
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+        }
+
+        // --- Layout / Physics Helpers ---
+
+        function getPositionAtDistance(dist) {
+            if (pathPoints.length === 0) return { x: 0, y: 0 };
+            if (dist < 0) return pathPoints[0];
+
+            const totalLen = _totalPathLength;
+            let percent = dist / totalLen;
+            if (percent >= 1) return null;
+
+            let idx = Math.floor(percent * pathPoints.length);
+            return pathPoints[idx];
+        }
+
+        let _totalPathLength = 0;
+        function calculatePathLength() {
+            let d = 0;
+            for (let i = 1; i < pathPoints.length; i++) {
+                const dx = pathPoints[i].x - pathPoints[i - 1].x;
+                const dy = pathPoints[i].y - pathPoints[i - 1].y;
+                d += Math.sqrt(dx * dx + dy * dy);
+            }
+            _totalPathLength = d;
+        }
+
+        function init() {
+            resize();
+            resetGame();
+            window.addEventListener('resize', resize);
+            window.addEventListener('mousemove', e => {
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+            window.addEventListener('mousedown', shoot);
+            requestAnimationFrame(loop);
+        }
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            shooter.x = canvas.width / 2;
+            shooter.y = canvas.height / 2;
+            generatePath();
+            calculatePathLength();
+        }
+
+        function resetGame() {
+            balls = [];
+            projectiles = [];
+            particles = [];
+            score = 0;
+            activeTypeCount = 3;
+            currentLevel = 1;
+            freezeTimer = 0;
+            reverseTimer = 0;
+
+            // Item States
+            fireState = { unlocked: false, cooldown: 0, charge: 0 };
+            laserState = { unlocked: false, cooldown: 0, active: false, timer: 0, tick: 0 };
+
+            document.getElementById('slot-fire').className = "item-slot locked";
+            document.getElementById('slot-laser').className = "item-slot locked";
+            document.getElementById('label-fire').innerText = "LOCKED (Lvl 4)";
+            document.getElementById('label-laser').innerText = "LOCKED (Lvl 6)";
+
+            // Queue Init
+            shooter.queue = [];
+            shuffleColors();
+            for (let i = 0; i < 3; i++) {
+                shooter.queue.push(rnd(0, activeTypeCount - 1));
+            }
+
+            document.getElementById('score-display').innerText = `Score: 0`;
+            document.getElementById('level-display').innerText = `Level 1`;
+            document.getElementById('game-over-screen').style.display = 'none';
+            document.getElementById('powerup-box').style.display = 'none';
+
+            gameState = 'playing';
+            spawnTimer = 0;
+            reloadShooter();
+        }
+
+        function reloadShooter() {
+            let typeIdx = shooter.queue.shift();
+
+            let newType = rnd(0, activeTypeCount - 1);
+            if (balls.length > 0 && Math.random() > 0.4) {
+                const existing = balls[rnd(0, balls.length - 1)];
+                newType = existing.typeIndex;
+            }
+            shooter.queue.push(newType);
+
+            shooter.nextBall = {
+                typeIndex: typeIdx,
+                angle: ANGLE_DEFS[typeIdx].c,
+                color: typeColorMap[typeIdx]
+            };
+        }
+
+        function shoot() {
+            if (gameState !== 'playing') return;
+            // No shooting if Laser Active
+            if (laserState.active) return;
+
+            // Prevent shooting if clicking Items
+            if (mouseX > window.innerWidth - 250 && mouseY > window.innerHeight - 150) {
+                return;
+            }
+
+            if (shooter.cooldown > 0) return;
+            if (!shooter.nextBall) return;
+
+            projectiles.push(new Projectile(
+                shooter.x,
+                shooter.y,
+                shooter.angle,
+                shooter.nextBall.typeIndex
+            ));
+
+            shooter.cooldown = config.shootDelay;
+            reloadShooter();
+        }
+
+        function checkLevelUp() {
+            let nextLevel = 1;
+            if (score >= 500) nextLevel = 2;
+            if (score >= 1500) nextLevel = 3;
+            if (score >= 3000) nextLevel = 4; // UNLOCKS AMULET
+            if (score >= 5000) nextLevel = 5;
+            if (score >= 7500) nextLevel = 6; // UNLOCKS LASER
+            if (score >= 10000) nextLevel = 7;
+
+            if (nextLevel > currentLevel) {
+                currentLevel = nextLevel;
+                shuffleColors();
+                activeTypeCount++;
+                if (activeTypeCount > ANGLE_DEFS.length) activeTypeCount = ANGLE_DEFS.length;
+
+                const msg = document.getElementById('level-up-msg');
+                msg.classList.add('active');
+                setTimeout(() => msg.classList.remove('active'), 2000);
+
+                document.getElementById('level-display').innerText = `Level ${currentLevel}`;
+
+                if (currentLevel >= 4 && !fireState.unlocked) {
+                    fireState.unlocked = true;
+                    document.getElementById('slot-fire').classList.remove('locked');
+                    document.getElementById('label-fire').innerText = "Charging 0/10";
+                }
+                if (currentLevel >= 6 && !laserState.unlocked) {
+                    laserState.unlocked = true;
+                    document.getElementById('slot-laser').classList.remove('locked');
+                    document.getElementById('label-laser').innerText = "Reference";
+                }
+            }
+        }
+
+        // --- ITEMS LOGIC ---
+        function updateItems() {
+            // FIRE
+            if (fireState.unlocked) {
+                if (fireState.cooldown > 0) fireState.cooldown--;
+
+                const btn = document.getElementById('btn-fire');
+                const label = document.getElementById('label-fire');
+                const overlay = document.getElementById('overlay-fire');
+
+                if (fireState.cooldown > 0) {
+                    let pct = fireState.cooldown / config.fireCooldownMax;
+                    overlay.style.height = (pct * 100) + '%';
+                    label.innerText = `${Math.ceil(fireState.cooldown / 60)}s`;
+                    btn.classList.remove('ready-fire');
+                } else if (fireState.charge < config.fireChargeReq) {
+                    overlay.style.height = '0%';
+                    label.innerText = `${fireState.charge}/${config.fireChargeReq}`;
+                    btn.classList.remove('ready-fire');
+                } else {
+                    overlay.style.height = '0%';
+                    label.innerText = `READY!`;
+                    btn.classList.add('ready-fire');
+                }
+            }
+
+            // LASER
+            if (laserState.unlocked) {
+                if (laserState.cooldown > 0 && !laserState.active) {
+                    laserState.cooldown--;
+                }
+
+                const btn = document.getElementById('btn-laser');
+                const label = document.getElementById('label-laser');
+                const overlay = document.getElementById('overlay-laser');
+
+                if (laserState.active) {
+                    // Active state
+                    btn.classList.add('active-laser');
+                    label.innerText = "ACTIVE!";
+                    overlay.style.height = '0%';
+
+                    // Run Laser Logic
+                    laserState.timer--;
+                    if (laserState.timer <= 0) {
+                        laserState.active = false;
+                        laserState.cooldown = config.laserCooldownMax;
+                        btn.classList.remove('active-laser');
+                    } else {
+                        laserLogic();
+                    }
+                } else {
+                    if (laserState.cooldown > 0) {
+                        let pct = laserState.cooldown / config.laserCooldownMax;
+                        overlay.style.height = (pct * 100) + '%';
+                        label.innerText = `${Math.ceil(laserState.cooldown / 60)}s`;
+                        btn.classList.remove('ready-laser');
+                    } else {
+                        overlay.style.height = '0%';
+                        label.innerText = `READY!`;
+                        btn.classList.add('ready-laser');
+                    }
+                }
+            }
+        }
+
+        function activateFire() {
+            if (!fireState.unlocked) return;
+            if (fireState.cooldown > 0) return;
+            if (fireState.charge < config.fireChargeReq) return;
+            if (balls.length === 0) return;
+
+            let count = Math.min(balls.length, 10);
+            for (let i = 0; i < count; i++) {
+                createExplosion(getPositionAtDistance(balls[i].distance), '#FF0000');
+            }
+
+            balls.splice(0, count);
+            fireState.cooldown = config.fireCooldownMax;
+            fireState.charge = 0;
+            score += 500;
+        }
+
+        function activateLaser() {
+            if (!laserState.unlocked) return;
+            if (laserState.cooldown > 0) return;
+            if (laserState.active) return;
+
+            laserState.active = true;
+            laserState.timer = config.laserDuration;
+        }
+
+        function laserLogic() {
+            // Visualize Beam (Shooter -> Mouse)
+            const dx = mouseX - shooter.x;
+            const dy = mouseY - shooter.y;
+            const angle = Math.atan2(dy, dx);
+
+            // Raycast limit
+            let maxDist = Math.max(canvas.width, canvas.height);
+
+            // Find intersection
+            // Logic: closest ball that intersects the line.
+            // Simplified: Loop all balls, check dist from line.
+            // Then find the ball strictly 'in front' (dot product > 0) and closest.
+
+            let closestDist = maxDist;
+            let hitIndex = -1;
+
+            // Line: P = shooter + t * dir
+            // Distance from point to line...
+            // Or simpler: Project ball pos onto line.
+
+            const sx = shooter.x; const sy = shooter.y;
+            const dirX = Math.cos(angle); const dirY = Math.sin(angle);
+
+            for (let i = 0; i < balls.length; i++) {
+                const b = balls[i];
+                const p = getPositionAtDistance(b.distance);
+                if (!p) continue;
+
+                // Vector Shooter->Ball
+                const px = p.x - sx; const py = p.y - sy;
+
+                // Project onto direction
+                const t = px * dirX + py * dirY;
+
+                if (t > 0) { // In front
+                    // Perp dist
+                    // Closest point on line
+                    const cx = sx + t * dirX;
+                    const cy = sy + t * dirY;
+
+                    const distSq = (p.x - cx) ** 2 + (p.y - cy) ** 2;
+                    if (distSq < config.ballRadius * config.ballRadius) {
+                        // HIT
+                        if (t < closestDist) {
+                            closestDist = t;
+                            hitIndex = i;
+                        }
+                    }
+                }
+            }
+
+            // Draw Beam
+            const endX = sx + closestDist * dirX;
+            const endY = sy + closestDist * dirY;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(endX, endY);
+            ctx.strokeStyle = '#4361ee';
+            ctx.lineWidth = 10 + Math.random() * 5;
+            ctx.lineCap = 'round';
+            ctx.shadowColor = '#4cc9f0';
+            ctx.shadowBlur = 20;
+            ctx.stroke();
+
+            // Inner core
+            ctx.beginPath();
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(endX, endY);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            if (hitIndex !== -1) {
+                // Impact Effect
+                ctx.beginPath();
+                ctx.arc(endX, endY, 20 + Math.random() * 10, 0, Math.PI * 2);
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+
+                // Damage Logic
+                laserState.tick++;
+                if (laserState.tick > 12) { // Destruction Rate
+                    const b = balls[hitIndex];
+                    createExplosion(getPositionAtDistance(b.distance), typeColorMap[b.typeIndex]);
+                    balls.splice(hitIndex, 1);
+                    laserState.tick = 0;
+                    score += 50;
+                }
+            }
+            ctx.restore();
+        }
+
+        function updateUI() {
+            document.getElementById('score-display').innerText = `Score: ${score}`;
+        }
+
+        // --- Core Physics Update ---
+
+        function update() {
+            if (gameState !== 'playing') return;
+
+            updateUI();
+            checkLevelUp();
+            updateItems();
+
+            let globalVelocity = config.ballSpeed;
+            let statusText = "";
+
+            if (freezeTimer > 0) {
+                freezeTimer--;
+                globalVelocity = 0;
+                statusText = "❄️ FROZEN";
+            } else if (reverseTimer > 0) {
+                reverseTimer--;
+                globalVelocity = -config.ballSpeed * 2;
+                statusText = "⏪ REWIND";
+            }
+            if (laserState.active) {
+                // Should Laser stop the chain? Maybe slows it down?
+                // Let's make it epic: Laser Stops Time.
+                // Or user requested just laser.
+                // Let's keep moving for difficulty.
+            }
+
+            const pbox = document.getElementById('powerup-box');
+            const ptext = document.getElementById('powerup-display');
+            if (statusText) {
+                pbox.style.display = 'flex';
+                ptext.innerText = statusText;
+            } else {
+                pbox.style.display = 'none';
+            }
+
+            // SPAWN only if no freeze, rewind, OR LASER?
+            // If laser is active, user cannot shoot normal balls. So no defensive play.
+            // If we keep spawning, user might die during laser.
+            // Let's pause spawning during Laser basically.
+            let spawningPaused = (freezeTimer > 0 || reverseTimer > 0 || laserState.active);
+
+            if (!spawningPaused) {
+                spawnTimer++;
+                if (spawnTimer > config.spawnInterval) {
+                    let canSpawn = true;
+                    if (balls.length > 0) {
+                        let lastBall = balls[balls.length - 1];
+                        if (lastBall.distance < config.ballSpacing) {
+                            canSpawn = false;
+                        }
+                    }
+
+                    if (canSpawn) {
+                        balls.push(new Ball(0));
+                        spawnTimer = 0;
+                    }
+                }
+            }
+
+            if (balls.length > 0) {
+                let i = 0;
+                while (i < balls.length) {
+                    let segmentStart = i;
+                    let segmentEnd = i;
+
+                    while (segmentEnd < balls.length - 1) {
+                        let lead = balls[segmentEnd];
+                        let trail = balls[segmentEnd + 1];
+                        if (lead.distance - trail.distance <= config.ballSpacing + 5) {
+                            segmentEnd++;
+                        } else {
+                            break;
+                        }
+                    }
+
+                    let velocity = globalVelocity;
+
+                    if (!spawningPaused) {
+                        if (segmentEnd < balls.length - 1) {
+                            let myTail = balls[segmentEnd];
+                            let nextHead = balls[segmentEnd + 1];
+                            let gap = myTail.distance - nextHead.distance;
+                            if (gap > config.ballSpacing + 4) {
+                                velocity = -config.backSpeed;
+                            }
+                        }
+                    }
+
+                    for (let k = segmentStart; k <= segmentEnd; k++) {
+                        balls[k].distance += velocity;
+                    }
+
+                    i = segmentEnd + 1;
+                }
+
+                for (let k = 0; k < balls.length - 1; k++) {
+                    let lead = balls[k];
+                    let trail = balls[k + 1];
+                    if (lead.distance - trail.distance < config.ballSpacing) {
+                        trail.distance = lead.distance - config.ballSpacing;
+                    }
+                }
+            }
+
+            for (let b of balls) {
+                if (b.distance >= _totalPathLength) {
+                    gameOver();
+                }
+            }
+
+            const dx = mouseX - shooter.x;
+            const dy = mouseY - shooter.y;
+            shooter.angle = Math.atan2(dy, dx);
+            if (shooter.cooldown > 0) shooter.cooldown--;
+
+            updateProjectiles();
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                if (particles[i].life <= 0) particles.splice(i, 1);
+            }
+        }
+
+        function updateProjectiles() {
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                let p = projectiles[i];
+                p.update();
+
+                if (!p.active) {
+                    projectiles.splice(i, 1);
+                    continue;
+                }
+
+                let hit = false;
+                for (let j = 0; j < balls.length; j++) {
+                    let b = balls[j];
+                    let bPos = getPositionAtDistance(b.distance);
+                    if (!bPos) continue;
+
+                    let dx = bPos.x - p.x;
+                    let dy = bPos.y - p.y;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < config.ballRadius * 2) {
+                        hit = true;
+                        handleCollision(p, j);
+                        projectiles.splice(i, 1);
+                        break;
+                    }
+                }
+            }
+        }
+
+        function handleCollision(projectile, ballIndex) {
+            let target = balls[ballIndex];
+            let sum = target.angles[0] + target.angles[1] + projectile.value;
+
+            if (sum === 180) {
+                resolveMatch(ballIndex, target.typeIndex);
+            } else {
+                insertBall(projectile, ballIndex);
+            }
+        }
+
+        function resolveMatch(index, typeIdx) {
+            let start = index;
+            while (start > 0 && balls[start - 1].typeIndex === typeIdx) {
+                start--;
+            }
+            let end = index;
+            while (end < balls.length - 1 && balls[end + 1].typeIndex === typeIdx) {
+                end++;
+            }
+
+            let count = end - start + 1;
+
+            // CHARGE FIRE (On Destroy)
+            if (fireState.unlocked && fireState.charge < config.fireChargeReq) {
+                fireState.charge += count;
+                if (fireState.charge > config.fireChargeReq) fireState.charge = config.fireChargeReq;
+            }
+
+            let powerupsToActivate = [];
+            for (let k = start; k <= end; k++) {
+                if (balls[k].powerup) powerupsToActivate.push(balls[k].powerup);
+            }
+            for (let k = start; k <= end; k++) {
+                createExplosion(getPositionAtDistance(balls[k].distance), typeColorMap[balls[k].typeIndex]);
+            }
+
+            balls.splice(start, count);
+
+            for (let p of powerupsToActivate) {
+                activatePowerup(p);
+            }
+
+            score += 100 * count;
+        }
+
+        function activatePowerup(p) {
+            if (p.type === 'flame') {
+                for (let b of balls) {
+                    createExplosion(getPositionAtDistance(b.distance), typeColorMap[b.typeIndex]);
+                }
+                balls = [];
+                score += 1000;
+            } else if (p.type === 'freeze') {
+                freezeTimer = p.duration;
+            } else if (p.type === 'reverse') {
+                reverseTimer = p.duration;
+            }
+        }
+
+        function insertBall(projectile, hitIndex) {
+            let target = balls[hitIndex];
+
+            let newBall = new Ball(target.distance, projectile.typeIndex);
+
+            for (let k = 0; k <= hitIndex; k++) {
+                balls[k].distance += config.ballSpacing;
+            }
+
+            newBall.distance = balls[hitIndex].distance - config.ballSpacing;
+            balls.splice(hitIndex + 1, 0, newBall);
+
+            score -= 10;
+        }
+
+        function createExplosion(pos, color) {
+            if (!pos) return;
+            for (let i = 0; i < 20; i++) {
+                particles.push(new Particle(pos.x, pos.y, color));
+            }
+        }
+
+        function drawPath() {
+            if (pathPoints.length < 2) return;
+            ctx.beginPath();
+            ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
+            for (let i = 1; i < pathPoints.length; i++) {
+                ctx.lineTo(pathPoints[i].x, pathPoints[i].y);
+            }
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = 'rgba(255,255,255,0.2)';
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = config.ballRadius * 2 + 10;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+
+            ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+            ctx.lineWidth = config.ballRadius * 2;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+
+        function drawQueue() {
+            const centerX = canvas.width / 2;
+            const bottomY = canvas.height - 50;
+
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.font = 'bold 16px "Segoe UI"';
+            ctx.textAlign = 'center';
+            ctx.fillText("NEXT", centerX, bottomY - 50);
+
+            let totalWidth = (shooter.queue.length - 1) * 60;
+            let startX = centerX - totalWidth / 2;
+
+            for (let i = 0; i < shooter.queue.length; i++) {
+                let typeIdx = shooter.queue[i];
+                let angleVal = ANGLE_DEFS[typeIdx].c;
+
+                let x = startX + i * 60;
+                let y = bottomY;
+
+                // Glass Ball Style
+                ctx.beginPath();
+                ctx.arc(x, y, 25, 0, Math.PI * 2);
+
+                let grad = ctx.createRadialGradient(x - 8, y - 8, 4, x, y, 25);
+                grad.addColorStop(0, 'rgba(255,255,255,0.9)');
+                grad.addColorStop(0.5, 'rgba(200,200,255,0.3)');
+                grad.addColorStop(1, 'rgba(255,255,255,0.1)');
+                ctx.fillStyle = grad;
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(200, 200, 255, 0.4)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Text
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 18px "Segoe UI", Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                ctx.shadowBlur = 4;
+                ctx.fillText(angleVal + '°', x, y);
+                ctx.shadowBlur = 0;
+            }
+        }
+
+
+        function drawShooter() {
+            ctx.save();
+            ctx.translate(shooter.x, shooter.y);
+            ctx.rotate(shooter.angle);
+
+            // Aim Arrow
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([10, 10]);
+            ctx.beginPath();
+            ctx.moveTo(35, 0);
+            ctx.lineTo(300, 0);
+            ctx.stroke();
+            ctx.restore();
+
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#4cc9f0';
+
+            // Shooter Body (Different if Laser Active)
+            if (laserState.active) {
+                ctx.fillStyle = '#f0f'; // Laser Mode Color
+                ctx.shadowColor = '#f0f';
+            } else {
+                ctx.fillStyle = '#4361ee';
+                ctx.shadowColor = '#4cc9f0';
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(25, 0);
+            ctx.lineTo(-20, 20);
+            ctx.lineTo(-20, -20);
+            ctx.fill();
+
+            ctx.fillStyle = '#3a0ca3';
+            ctx.beginPath();
+            ctx.arc(0, 0, 15, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.shadowBlur = 0;
+            ctx.restore();
+
+            // Hide loaded ball if Laser is active
+            if (shooter.nextBall && !laserState.active) {
+                let bx = shooter.x;
+                let by = shooter.y;
+
+                ctx.beginPath();
+                ctx.arc(bx, by, config.ballRadius, 0, Math.PI * 2);
+
+                let grad = ctx.createRadialGradient(bx - 10, by - 10, 5, bx, by, config.ballRadius);
+                grad.addColorStop(0, 'rgba(255,255,255,0.9)');
+                grad.addColorStop(0.5, 'rgba(200,200,255,0.4)');
+                grad.addColorStop(1, 'rgba(255,255,255,0.1)');
+                ctx.fillStyle = grad;
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(200, 200, 255, 0.8)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 22px "Segoe UI", Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowBlur = 4;
+                ctx.shadowColor = 'black';
+                ctx.fillText(shooter.nextBall.angle + '°', bx, by);
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        function gameOver() {
+            gameState = 'gameover';
+            document.getElementById('final-score').innerText = `Final Score: ${score}`;
+            document.getElementById('game-over-screen').style.display = 'flex';
+        }
+
+        function loop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawPath();
+
+            if (pathPoints.length > 0) {
+                let end = pathPoints[pathPoints.length - 1];
+                ctx.beginPath();
+                ctx.arc(end.x, end.y, config.ballRadius * 1.8, 0, Math.PI * 2);
+                ctx.fillStyle = '#111';
+                ctx.fill();
+                ctx.strokeStyle = '#f72585';
+                ctx.lineWidth = 4;
+                ctx.setLineDash([10, 10]);
+                ctx.beginPath();
+                ctx.arc(end.x, end.y, config.ballRadius * 1.8, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            update();
+
+            for (let i = balls.length - 1; i >= 0; i--) {
+                balls[i].draw();
+            }
+
+            for (let p of projectiles) p.draw();
+            for (let pt of particles) pt.draw();
+
+            drawShooter();
+            drawQueue();
+
+            requestAnimationFrame(loop);
+        }
+
+        init();
+    </script>
 </body>
+
 </html>
