@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>180 Graden Shooter</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+        }
+        #game-container {
+            position: relative;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            background: #34495e;
+            cursor: crosshair;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            pointer-events: none;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        #score {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(44, 62, 80, 0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        #game-over-screen h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+            color: #e74c3c;
+        }
+        #final-score {
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 18px;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #2ecc71;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="ui-layer">
+        <div id="score">Score: 0</div>
+    </div>
+    <div id="game-over-screen">
+        <h1>Game Over!</h1>
+        <div id="final-score">Je score: 0</div>
+        <button id="restart-btn">Opnieuw Spelen</button>
+    </div>
+</div>
+
+<script>
+// ================= CONFIGURATIE =================
+const config = {
+    ballRadius: 25,
+    ballSpeed: 0.8,         // Snelheid van de slang
+    spawnRate: 120,         // Hoeveel frames tussen elke nieuwe bal
+    projectileSpeed: 12,    // Snelheid van geschoten bal
+    colors: {
+        snakeBall: '#3498db',
+        projectile: '#e67e22',
+        shooter: '#95a5a6',
+        path: '#2c3e50',
+        text: '#ffffff',
+        correctHit: '#2ecc71',
+        wrongHit: '#e74c3c'
+    }
+};
+
+// ================= GLOBALE VARIABELEN =================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreElement = document.getElementById('score');
+const gameOverScreen = document.getElementById('game-over-screen');
+const finalScoreElement = document.getElementById('final-score');
+const restartBtn = document.getElementById('restart-btn');
+
+let gameState = {
+    score: 0,
+    isRunning: true,
+    frameCount: 0,
+    mouseX: canvas.width / 2,
+    mouseY: canvas.height / 2
+};
+
+// Het pad dat de ballen volgen (een simpele curve van linksboven naar rechtsonder)
+const pathPoints = [];
+function generatePath() {
+    // We gebruiken een Bézier-achtige curve voor een soepel pad
+    let start = {x: 0, y: 100};
+    let cp1 = {x: 200, y: 50}; // Controlepunt 1
+    let cp2 = {x: 600, y: 550}; // Controlepunt 2
+    let end = {x: 800, y: 500};
+
+    for (let t = 0; t <= 1; t += 0.002) {
+        // Cubische Bézier formule
+        let x = Math.pow(1-t, 3)*start.x + 3*Math.pow(1-t, 2)*t*cp1.x + 3*(1-t)*Math.pow(t, 2)*cp2.x + Math.pow(t, 3)*end.x;
+        let y = Math.pow(1-t, 3)*start.y + 3*Math.pow(1-t, 2)*t*cp1.y + 3*(1-t)*Math.pow(t, 2)*cp2.y + Math.pow(t, 3)*end.y;
+        pathPoints.push({x: x, y: y});
+    }
+}
+
+let snake = [];        // Array voor de ballen op het pad
+let projectiles = [];  // Array voor geschoten ballen
+let shooter = {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    angle: 0,
+    currentAmmo: 0,
+    nextAmmo: 0
+};
+
+// ================= HULPFUNCTIES =================
+
+// Genereer een willekeurig veelvoud van 5 tussen min en max
+function randomAngle(min, max) {
+    let range = (max - min) / 5;
+    return min + Math.floor(Math.random() * range) * 5;
+}
+
+// Genereer een geldige set van 3 hoeken die samen 180 zijn
+function generateTriangleAngles() {
+    let a = randomAngle(20, 100);
+    // Zorg dat b + a < 175 zodat c minstens 5 is
+    let b = randomAngle(20, 175 - a);
+    let c = 180 - a - b;
+    // Shuffle de hoeken zodat we willekeurig weten welke de speler krijgt
+    let angles = [a, b, c];
+    angles.sort(() => Math.random() - 0.5);
+    return angles;
+}
+
+// Bereken afstand tussen twee punten
+function distance(x1, y1, x2, y2) {
+    return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+}
+
+// ================= SPEL LOGICA =================
+
+class SnakeBall {
+    constructor(pathIndex) {
+        this.pathIndex = pathIndex; // Positie op het pad
+        this.radius = config.ballRadius;
+        
+        // Genereer de wiskunde
+        let angles = generateTriangleAngles();
+        this.angleA = angles[0];
+        this.angleB = angles[1];
+        this.neededAngle = angles[2]; // De hoek die de speler moet schieten
+        
+        this.x = pathPoints[0].x;
+        this.y = pathPoints[0].y;
+        this.color = config.colors.snakeBall;
+        this.markedForDeletion = false;
+    }
+
+    update() {
+        // Beweeg langs het pad
+        this.pathIndex += config.ballSpeed;
+        
+        // Check Game Over
+        if (this.pathIndex >= pathPoints.length - 1) {
+            gameOver();
+            return;
+        }
+
+        // Update positie op basis van nieuwe index
+        let indexFloor = Math.floor(this.pathIndex);
+        this.x = pathPoints[indexFloor].x;
+        this.y = pathPoints[indexFloor].y;
+    }
+
+    draw() {
+        drawBall(this.x, this.y, this.radius, this.color, `${this.angleA}, ${this.angleB}`);
+    }
+}
+
+class Projectile {
+    constructor(x, y, angle, value) {
+        this.x = x;
+        this.y = y;
+        this.radius = config.ballRadius * 0.8; // Iets kleiner
+        this.dx = Math.cos(angle) * config.projectileSpeed;
+        this.dy = Math.sin(angle) * config.projectileSpeed;
+        this.value = value;
+        this.color = config.colors.projectile;
+        this.markedForDeletion = false;
+    }
+
+    update() {
+        this.x += this.dx;
+        this.y += this.dy;
+
+        // Verwijder als buiten beeld
+        if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
+            this.markedForDeletion = true;
+        }
+    }
+
+    draw() {
+        drawBall(this.x, this.y, this.radius, this.color, this.value.toString());
+    }
+}
+
+function initGame() {
+    generatePath();
+    snake = [];
+    projectiles = [];
+    gameState.score = 0;
+    gameState.frameCount = 0;
+    gameState.isRunning = true;
+    scoreElement.textContent = "Score: 0";
+    gameOverScreen.style.display = "none";
+    
+    // Initialiseer munitie
+    shooter.currentAmmo = generateTriangleAngles()[Math.floor(Math.random()*3)];
+    shooter.nextAmmo = generateTriangleAngles()[Math.floor(Math.random()*3)];
+
+    requestAnimationFrame(gameLoop);
+}
+
+function gameOver() {
+    gameState.isRunning = false;
+    finalScoreElement.textContent = "Je score: " + gameState.score;
+    gameOverScreen.style.display = "flex";
+}
+
+function update() {
+    if (!gameState.isRunning) return;
+    gameState.frameCount++;
+
+    // Spawn nieuwe ballen in de slang
+    if (gameState.frameCount % config.spawnRate === 0) {
+        // Alleen spawnen als de laatste bal ver genoeg weg is (simpele check om overlap bij start te voorkomen)
+        if (snake.length === 0 || snake[snake.length-1].pathIndex > config.ballRadius * 2.2) {
+             snake.push(new SnakeBall(0));
+        }
+    }
+
+    // Update shooter hoek
+    let dx = gameState.mouseX - shooter.x;
+    let dy = gameState.mouseY - shooter.y;
+    shooter.angle = Math.atan2(dy, dx);
+
+    // Update slang
+    snake.forEach(ball => ball.update());
+    
+    // Update projectielen en check botsingen
+    projectiles.forEach(proj => {
+        proj.update();
+        
+        snake.forEach(targetBall => {
+            if (proj.markedForDeletion || targetBall.markedForDeletion) return;
+
+            if (distance(proj.x, proj.y, targetBall.x, targetBall.y) < proj.radius + targetBall.radius) {
+                // BOTSING! Check de wiskunde.
+                let sum = proj.value + targetBall.angleA + targetBall.angleB;
+                
+                if (Math.abs(sum - 180) < 0.1) { // Gebruik kleine marge voor float vergelijking, hoewel we met integers werken is dit veiliger
+                    // Succes! 180 graden gemaakt.
+                    targetBall.markedForDeletion = true;
+                    gameState.score += 100;
+                    scoreElement.textContent = "Score: " + gameState.score;
+                    // Visuele feedback (bal wordt even groen)
+                    targetBall.color = config.colors.correctHit;
+                } else {
+                    // Gefaald. Visuele feedback (bal wordt even rood)
+                    targetBall.color = config.colors.wrongHit;
+                    // Optioneel: strafpunten?
+                    // gameState.score -= 10;
+                }
+                proj.markedForDeletion = true; // Projectiel verdwijnt altijd na een raak schot
+            }
+        });
+    });
+
+    // Verwijder gemarkeerde objecten
+    snake = snake.filter(ball => !ball.markedForDeletion);
+    projectiles = projectiles.filter(proj => !proj.markedForDeletion);
+}
+
+function drawBall(x, y, radius, color, text) {
+    // Cirkel met schaduw effect voor diepte
+    let gradient = ctx.createRadialGradient(x - radius/3, y - radius/3, radius/10, x, y, radius);
+    gradient.addColorStop(0, lightenColor(color, 30));
+    gradient.addColorStop(1, color);
+    
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = gradient;
+    ctx.fill();
+    ctx.strokeStyle = darkenColor(color, 20);
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.closePath();
+
+    // Tekst
+    ctx.fillStyle = config.colors.text;
+    ctx.font = "bold " + (radius * 0.7) + "px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x, y);
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Teken het pad (dunne lijn)
+    if (pathPoints.length > 0) {
+        ctx.beginPath();
+        ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
+        for(let i=1; i<pathPoints.length; i++) {
+            ctx.lineTo(pathPoints[i].x, pathPoints[i].y);
+        }
+        ctx.strokeStyle = config.colors.path;
+        ctx.lineWidth = config.ballRadius * 2.2; // Pad breedte iets groter dan bal
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        // Teken een dunne lijn in het midden van het pad
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = darkenColor(config.colors.path, 20);
+        ctx.stroke();
+    }
+    
+    // Teken het "gat" aan het einde
+    let endPoint = pathPoints[pathPoints.length - 1];
+    ctx.beginPath();
+    ctx.arc(endPoint.x, endPoint.y, config.ballRadius * 1.5, 0, Math.PI*2);
+    ctx.fillStyle = '#111';
+    ctx.fill();
+
+    // Teken slang
+    snake.forEach(ball => ball.draw());
+
+    // Teken projectielen
+    projectiles.forEach(proj => proj.draw());
+
+    // Teken shooter
+    ctx.save();
+    ctx.translate(shooter.x, shooter.y);
+    ctx.rotate(shooter.angle);
+    
+    // Kanon loop
+    ctx.fillStyle = shooter.color;
+    ctx.fillRect(0, -15, 40, 30); 
+    
+    // Shooter basis
+    ctx.beginPath();
+    ctx.arc(0, 0, 30, 0, Math.PI * 2);
+    ctx.fillStyle = darkenColor(shooter.color, 20);
+    ctx.fill();
+    ctx.restore();
+
+    // Teken huidige munitie OP de shooter
+    drawBall(shooter.x, shooter.y, config.ballRadius * 0.8, config.colors.projectile, shooter.currentAmmo.toString());
+    
+    // Teken volgende munitie (kleiner, ernaast)
+    drawBall(shooter.x + 50, shooter.y + 50, config.ballRadius * 0.5, darkenColor(config.colors.projectile, 10), shooter.nextAmmo.toString());
+    ctx.fillStyle = config.colors.text;
+    ctx.font = "14px Arial";
+    ctx.fillText("Next", shooter.x + 50, shooter.y + 25);
+
+}
+
+function gameLoop() {
+    update();
+    draw();
+    if (gameState.isRunning) {
+        requestAnimationFrame(gameLoop);
+    }
+}
+
+// ================= EVENT LISTENERS =================
+
+canvas.addEventListener('mousemove', (e) => {
+    let rect = canvas.getBoundingClientRect();
+    gameState.mouseX = e.clientX - rect.left;
+    gameState.mouseY = e.clientY - rect.top;
+});
+
+canvas.addEventListener('mousedown', (e) => {
+    if (!gameState.isRunning) return;
+    
+    // Schiet!
+    projectiles.push(new Projectile(shooter.x, shooter.y, shooter.angle, shooter.currentAmmo));
+    
+    // Herlaad munitie
+    shooter.currentAmmo = shooter.nextAmmo;
+    // Genereer nieuwe 'next' munitie. We pakken een willekeurige hoek uit een nieuwe geldige driehoek.
+    shooter.nextAmmo = generateTriangleAngles()[Math.floor(Math.random()*3)];
+});
+
+restartBtn.addEventListener('click', initGame);
+
+// Hulpfuncties voor kleuren (om het iets mooier te maken zonder externe assets)
+function lightenColor(col, amt) {
+    return adjustColor(col, amt);
+}
+function darkenColor(col, amt) {
+    return adjustColor(col, -amt);
+}
+function adjustColor(col, amt) {
+    var usePound = false;
+    if (col[0] == "#") { col = col.slice(1); usePound = true; }
+    var num = parseInt(col,16);
+    var r = (num >> 16) + amt; if (r > 255) r = 255; else if  (r < 0) r = 0;
+    var b = ((num >> 8) & 0x00FF) + amt; if (b > 255) b = 255; else if  (b < 0) b = 0;
+    var g = (num & 0x0000FF) + amt; if (g > 255) g = 255; else if (g < 0) g = 0;
+    return (usePound?"#":"") + (g | (b << 8) | (r << 16)).toString(16);
+}
+
+// Start het spel
+initGame();
+
+</script>
+</body>
+</html>
