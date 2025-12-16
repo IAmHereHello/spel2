@@ -175,6 +175,29 @@
             display: block;
         }
 
+        /* Floating Text (Rage Feedback) */
+        .float-text {
+            position: absolute;
+            color: #ff0000;
+            font-weight: bold;
+            font-size: 24px;
+            pointer-events: none;
+            animation: floatUp 1s forwards;
+            text-shadow: 0 0 10px black;
+        }
+
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(-50px) scale(1.5);
+            }
+        }
+
         #game-over-screen {
             position: absolute;
             top: 0;
@@ -237,6 +260,23 @@
             opacity: 1;
             transform: translate(-50%, -80%);
         }
+
+        #start-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            z-index: 20;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
     </style>
 </head>
 
@@ -282,11 +322,109 @@
         <button onclick="resetGame()">Play Again</button>
     </div>
 
+    <div id="start-overlay" onclick="startGame()">Click to Start (Enable Audio)</div>
+
     <canvas id="gameCanvas"></canvas>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+
+        // --- AUDIO MANAGER ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        const SoundManager = {
+            playTone: (freq, type, duration, vol = 0.1) => {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            },
+            playShoot: () => {
+                SoundManager.playTone(600, 'sine', 0.1, 0.1);
+                // Pitch drop
+                if (audioCtx.state === 'suspended') return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            },
+            playHit: () => {
+                // Thud
+                SoundManager.playTone(100, 'square', 0.1, 0.05);
+            },
+            playMatch: () => {
+                // Ding
+                SoundManager.playTone(880, 'sine', 0.3, 0.1);
+                setTimeout(() => SoundManager.playTone(1100, 'sine', 0.3, 0.1), 50);
+            },
+            playExplosion: () => {
+                if (audioCtx.state === 'suspended') return;
+                const bufferSize = audioCtx.sampleRate * 0.5; // 0.5 sec
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                noise.connect(gain);
+                gain.connect(audioCtx.destination);
+                noise.start();
+            },
+            playLaser: () => {
+                // Buzz
+                if (audioCtx.state === 'suspended') return;
+                const osc = audioCtx.createOscillator();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            },
+            playError: () => {
+                // Error / Rage Sound (Low Sawtooth Drop)
+                if (audioCtx.state === 'suspended') return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            }
+        };
+
+        function startGame() {
+            document.getElementById('start-overlay').style.display = 'none';
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            init();
+        }
 
         // --- Game Config ---
         const config = {
@@ -305,7 +443,11 @@
 
             // Laser Amulet
             laserCooldownMax: 2400, // 40s
-            laserDuration: 600      // 10s
+            laserDuration: 600,     // 10s
+
+            // Rage (Anti-Spam)
+            rageDuration: 150,  // 2.5s
+            spamThreshold: 800, // ms between shots to count as 'fast'
         };
 
         // --- MATH DEFINITIONS ---
@@ -343,7 +485,7 @@
             cooldown: 0
         };
         let score = 0;
-        let gameState = 'playing';
+        let gameState = 'waiting';
         let mouseX = 0;
         let mouseY = 0;
         let spawnTimer = 0;
@@ -354,12 +496,17 @@
         // Effect State
         let freezeTimer = 0;
         let reverseTimer = 0;
+        let rageTimer = 0;
+        let currentRageMultiplier = 1.0;
+
+        // Spam Detection
+        let lastShotTime = 0;
+        let spamStreak = 0;
 
         // Items State
         let fireState = { unlocked: false, cooldown: 0, charge: 0 };
         let laserState = { unlocked: false, cooldown: 0, active: false, timer: 0, tick: 0 };
 
-        // --- Math Helpers ---
         function rnd(min, max) {
             return Math.floor(Math.random() * (max - min + 1)) + min;
         }
@@ -378,7 +525,6 @@
             });
         }
 
-        // --- Path Generation ---
         function generatePath() {
             pathPoints = [];
             const w = canvas.width;
@@ -401,8 +547,6 @@
                 pathPoints.push({ x, y });
             }
         }
-
-        // --- Classes ---
 
         class Ball {
             constructor(distance, typeIndex = -1) {
@@ -431,13 +575,11 @@
 
                 const currentColor = typeColorMap[this.typeIndex];
 
-                // Main Circle
                 ctx.beginPath();
                 ctx.arc(pos.x, pos.y, config.ballRadius, 0, Math.PI * 2);
                 ctx.fillStyle = currentColor;
                 ctx.fill();
 
-                // 3D Effect
                 let grad = ctx.createRadialGradient(
                     pos.x - config.ballRadius * 0.3,
                     pos.y - config.ballRadius * 0.3,
@@ -451,7 +593,6 @@
                 ctx.fillStyle = grad;
                 ctx.fill();
 
-                // Highlight
                 ctx.beginPath();
                 ctx.arc(pos.x - config.ballRadius * 0.4, pos.y - config.ballRadius * 0.4, config.ballRadius * 0.15, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
@@ -461,7 +602,6 @@
                 ctx.lineWidth = 1;
                 ctx.stroke();
 
-                // Text or Icon
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
 
@@ -543,19 +683,22 @@
                 this.x = x;
                 this.y = y;
                 const angle = Math.random() * Math.PI * 2;
-                const speed = Math.random() * 5 + 2;
+                // Faster explosion speed (Splatter)
+                const speed = Math.random() * 8 + 4;
                 this.vx = Math.cos(angle) * speed;
                 this.vy = Math.sin(angle) * speed;
                 this.life = 1.0;
                 this.color = color;
-                this.size = Math.random() * 5 + 2;
+                this.size = Math.random() * 6 + 3;
             }
 
             update() {
                 this.x += this.vx;
                 this.y += this.vy;
-                this.life -= 0.02;
-                this.size *= 0.95;
+                this.life -= 0.03;
+                this.size *= 0.92;
+                this.vx *= 0.95;
+                this.vy *= 0.95;
             }
 
             draw() {
@@ -567,8 +710,6 @@
                 ctx.globalAlpha = 1.0;
             }
         }
-
-        // --- Layout / Physics Helpers ---
 
         function getPositionAtDistance(dist) {
             if (pathPoints.length === 0) return { x: 0, y: 0 };
@@ -623,8 +764,11 @@
             currentLevel = 1;
             freezeTimer = 0;
             reverseTimer = 0;
+            rageTimer = 0;
+            currentRageMultiplier = 1.0;
+            lastShotTime = 0;
+            spamStreak = 0;
 
-            // Item States
             fireState = { unlocked: false, cooldown: 0, charge: 0 };
             laserState = { unlocked: false, cooldown: 0, active: false, timer: 0, tick: 0 };
 
@@ -633,7 +777,6 @@
             document.getElementById('label-fire').innerText = "LOCKED (Lvl 4)";
             document.getElementById('label-laser').innerText = "LOCKED (Lvl 6)";
 
-            // Queue Init
             shooter.queue = [];
             shuffleColors();
             for (let i = 0; i < 3; i++) {
@@ -644,6 +787,10 @@
             document.getElementById('level-display').innerText = `Level 1`;
             document.getElementById('game-over-screen').style.display = 'none';
             document.getElementById('powerup-box').style.display = 'none';
+
+            // Clear floating text
+            const floats = document.querySelectorAll('.float-text');
+            floats.forEach(el => el.remove());
 
             gameState = 'playing';
             spawnTimer = 0;
@@ -669,16 +816,44 @@
 
         function shoot() {
             if (gameState !== 'playing') return;
-            // No shooting if Laser Active
             if (laserState.active) return;
 
-            // Prevent shooting if clicking Items
             if (mouseX > window.innerWidth - 250 && mouseY > window.innerHeight - 150) {
                 return;
             }
 
             if (shooter.cooldown > 0) return;
             if (!shooter.nextBall) return;
+
+            // SPAM CHECK (Progressive)
+            const now = Date.now();
+            if (now - lastShotTime < config.spamThreshold) {
+                spamStreak++;
+
+                if (spamStreak === 5) {
+                    createFloatText(shooter.x, shooter.y - 100, "NIET SPAMMEN (1/3)");
+                } else if (spamStreak === 6) {
+                    createFloatText(shooter.x, shooter.y - 100, "NIET SPAMMEN (2/3)");
+                } else if (spamStreak === 7) {
+                    createFloatText(shooter.x, shooter.y - 100, "STOP NU!");
+                } else if (spamStreak >= 8) {
+                    rageTimer = config.rageDuration;
+
+                    // Progressive Speed: Base 6.0 + 2.0 for every extra click
+                    let extra = spamStreak - 8;
+                    currentRageMultiplier = 6.0 + (extra * 2.0);
+
+                    SoundManager.playError();
+                    createFloatText(shooter.x, shooter.y - 150, "SUCCES");
+                    // We do NOT reset spamStreak here, so it climbs to 9, 10, etc.
+                }
+            } else {
+                spamStreak = 0;
+                currentRageMultiplier = 1.0;
+            }
+            lastShotTime = now;
+
+            SoundManager.playShoot(); // SFX
 
             projectiles.push(new Projectile(
                 shooter.x,
@@ -695,9 +870,9 @@
             let nextLevel = 1;
             if (score >= 500) nextLevel = 2;
             if (score >= 1500) nextLevel = 3;
-            if (score >= 3000) nextLevel = 4; // UNLOCKS AMULET
+            if (score >= 3000) nextLevel = 4;
             if (score >= 5000) nextLevel = 5;
-            if (score >= 7500) nextLevel = 6; // UNLOCKS LASER
+            if (score >= 7500) nextLevel = 6;
             if (score >= 10000) nextLevel = 7;
 
             if (nextLevel > currentLevel) {
@@ -725,9 +900,7 @@
             }
         }
 
-        // --- ITEMS LOGIC ---
         function updateItems() {
-            // FIRE
             if (fireState.unlocked) {
                 if (fireState.cooldown > 0) fireState.cooldown--;
 
@@ -751,7 +924,6 @@
                 }
             }
 
-            // LASER
             if (laserState.unlocked) {
                 if (laserState.cooldown > 0 && !laserState.active) {
                     laserState.cooldown--;
@@ -762,12 +934,10 @@
                 const overlay = document.getElementById('overlay-laser');
 
                 if (laserState.active) {
-                    // Active state
                     btn.classList.add('active-laser');
                     label.innerText = "ACTIVE!";
                     overlay.style.height = '0%';
 
-                    // Run Laser Logic
                     laserState.timer--;
                     if (laserState.timer <= 0) {
                         laserState.active = false;
@@ -799,6 +969,7 @@
 
             let count = Math.min(balls.length, 10);
             for (let i = 0; i < count; i++) {
+                SoundManager.playExplosion();
                 createExplosion(getPositionAtDistance(balls[i].distance), '#FF0000');
             }
 
@@ -818,25 +989,15 @@
         }
 
         function laserLogic() {
-            // Visualize Beam (Shooter -> Mouse)
+            SoundManager.playLaser(); // SFX loop
+
             const dx = mouseX - shooter.x;
             const dy = mouseY - shooter.y;
             const angle = Math.atan2(dy, dx);
 
-            // Raycast limit
             let maxDist = Math.max(canvas.width, canvas.height);
-
-            // Find intersection
-            // Logic: closest ball that intersects the line.
-            // Simplified: Loop all balls, check dist from line.
-            // Then find the ball strictly 'in front' (dot product > 0) and closest.
-
             let closestDist = maxDist;
             let hitIndex = -1;
-
-            // Line: P = shooter + t * dir
-            // Distance from point to line...
-            // Or simpler: Project ball pos onto line.
 
             const sx = shooter.x; const sy = shooter.y;
             const dirX = Math.cos(angle); const dirY = Math.sin(angle);
@@ -846,21 +1007,15 @@
                 const p = getPositionAtDistance(b.distance);
                 if (!p) continue;
 
-                // Vector Shooter->Ball
                 const px = p.x - sx; const py = p.y - sy;
-
-                // Project onto direction
                 const t = px * dirX + py * dirY;
 
-                if (t > 0) { // In front
-                    // Perp dist
-                    // Closest point on line
+                if (t > 0) {
                     const cx = sx + t * dirX;
                     const cy = sy + t * dirY;
 
                     const distSq = (p.x - cx) ** 2 + (p.y - cy) ** 2;
                     if (distSq < config.ballRadius * config.ballRadius) {
-                        // HIT
                         if (t < closestDist) {
                             closestDist = t;
                             hitIndex = i;
@@ -869,7 +1024,6 @@
                 }
             }
 
-            // Draw Beam
             const endX = sx + closestDist * dirX;
             const endY = sy + closestDist * dirY;
 
@@ -884,7 +1038,6 @@
             ctx.shadowBlur = 20;
             ctx.stroke();
 
-            // Inner core
             ctx.beginPath();
             ctx.moveTo(sx, sy);
             ctx.lineTo(endX, endY);
@@ -893,16 +1046,16 @@
             ctx.stroke();
 
             if (hitIndex !== -1) {
-                // Impact Effect
                 ctx.beginPath();
                 ctx.arc(endX, endY, 20 + Math.random() * 10, 0, Math.PI * 2);
                 ctx.fillStyle = '#fff';
                 ctx.fill();
 
-                // Damage Logic
                 laserState.tick++;
-                if (laserState.tick > 12) { // Destruction Rate
+                // FASTER DESTROY (poppen sneller)
+                if (laserState.tick > 4) {
                     const b = balls[hitIndex];
+                    SoundManager.playExplosion();
                     createExplosion(getPositionAtDistance(b.distance), typeColorMap[b.typeIndex]);
                     balls.splice(hitIndex, 1);
                     laserState.tick = 0;
@@ -912,11 +1065,19 @@
             ctx.restore();
         }
 
+        function createFloatText(x, y, text) {
+            const div = document.createElement('div');
+            div.className = 'float-text';
+            div.style.left = x + 'px';
+            div.style.top = y + 'px';
+            div.innerText = text;
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 1000);
+        }
+
         function updateUI() {
             document.getElementById('score-display').innerText = `Score: ${score}`;
         }
-
-        // --- Core Physics Update ---
 
         function update() {
             if (gameState !== 'playing') return;
@@ -927,8 +1088,13 @@
 
             let globalVelocity = config.ballSpeed;
             let statusText = "";
+            let rageActive = (rageTimer > 0);
 
-            if (freezeTimer > 0) {
+            if (rageTimer > 0) {
+                rageTimer--;
+                globalVelocity *= currentRageMultiplier; // RAGE ACCELERATION
+                statusText = "😡 RAGE!!!";
+            } else if (freezeTimer > 0) {
                 freezeTimer--;
                 globalVelocity = 0;
                 statusText = "❄️ FROZEN";
@@ -936,12 +1102,6 @@
                 reverseTimer--;
                 globalVelocity = -config.ballSpeed * 2;
                 statusText = "⏪ REWIND";
-            }
-            if (laserState.active) {
-                // Should Laser stop the chain? Maybe slows it down?
-                // Let's make it epic: Laser Stops Time.
-                // Or user requested just laser.
-                // Let's keep moving for difficulty.
             }
 
             const pbox = document.getElementById('powerup-box');
@@ -953,11 +1113,7 @@
                 pbox.style.display = 'none';
             }
 
-            // SPAWN only if no freeze, rewind, OR LASER?
-            // If laser is active, user cannot shoot normal balls. So no defensive play.
-            // If we keep spawning, user might die during laser.
-            // Let's pause spawning during Laser basically.
-            let spawningPaused = (freezeTimer > 0 || reverseTimer > 0 || laserState.active);
+            let spawningPaused = (freezeTimer > 0 && !rageActive) || reverseTimer > 0 || laserState.active;
 
             if (!spawningPaused) {
                 spawnTimer++;
@@ -1076,8 +1232,10 @@
             let sum = target.angles[0] + target.angles[1] + projectile.value;
 
             if (sum === 180) {
+                SoundManager.playMatch(); // SFX
                 resolveMatch(ballIndex, target.typeIndex);
             } else {
+                SoundManager.playHit(); // SFX
                 insertBall(projectile, ballIndex);
             }
         }
@@ -1094,7 +1252,6 @@
 
             let count = end - start + 1;
 
-            // CHARGE FIRE (On Destroy)
             if (fireState.unlocked && fireState.charge < config.fireChargeReq) {
                 fireState.charge += count;
                 if (fireState.charge > config.fireChargeReq) fireState.charge = config.fireChargeReq;
@@ -1105,6 +1262,7 @@
                 if (balls[k].powerup) powerupsToActivate.push(balls[k].powerup);
             }
             for (let k = start; k <= end; k++) {
+                SoundManager.playExplosion();
                 createExplosion(getPositionAtDistance(balls[k].distance), typeColorMap[balls[k].typeIndex]);
             }
 
@@ -1134,6 +1292,9 @@
         function insertBall(projectile, hitIndex) {
             let target = balls[hitIndex];
 
+            // REMOVED RAGE ON MISS (User Request)
+            // Just a normal insert now
+
             let newBall = new Ball(target.distance, projectile.typeIndex);
 
             for (let k = 0; k <= hitIndex; k++) {
@@ -1148,7 +1309,8 @@
 
         function createExplosion(pos, color) {
             if (!pos) return;
-            for (let i = 0; i < 20; i++) {
+            // More particles for splatter
+            for (let i = 0; i < 40; i++) {
                 particles.push(new Particle(pos.x, pos.y, color));
             }
         }
@@ -1163,8 +1325,15 @@
             ctx.shadowBlur = 10;
             ctx.shadowColor = 'rgba(255,255,255,0.2)';
 
-            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-            ctx.lineWidth = config.ballRadius * 2 + 10;
+            // Visual feedback for RAGE (Pulse Red)
+            if (rageTimer > 0) {
+                ctx.strokeStyle = `rgba(255,0,0, ${0.5 + Math.sin(Date.now() / 50) * 0.5})`;
+                ctx.lineWidth = config.ballRadius * 2 + 15;
+            } else {
+                ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+                ctx.lineWidth = config.ballRadius * 2 + 10;
+            }
+
             ctx.lineCap = 'round';
             ctx.stroke();
 
@@ -1193,7 +1362,6 @@
                 let x = startX + i * 60;
                 let y = bottomY;
 
-                // Glass Ball Style
                 ctx.beginPath();
                 ctx.arc(x, y, 25, 0, Math.PI * 2);
 
@@ -1208,7 +1376,6 @@
                 ctx.lineWidth = 2;
                 ctx.stroke();
 
-                // Text
                 ctx.fillStyle = '#fff';
                 ctx.font = 'bold 18px "Segoe UI", Arial';
                 ctx.textAlign = 'center';
@@ -1226,7 +1393,6 @@
             ctx.translate(shooter.x, shooter.y);
             ctx.rotate(shooter.angle);
 
-            // Aim Arrow
             ctx.save();
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
             ctx.lineWidth = 4;
@@ -1240,9 +1406,8 @@
             ctx.shadowBlur = 15;
             ctx.shadowColor = '#4cc9f0';
 
-            // Shooter Body (Different if Laser Active)
             if (laserState.active) {
-                ctx.fillStyle = '#f0f'; // Laser Mode Color
+                ctx.fillStyle = '#f0f';
                 ctx.shadowColor = '#f0f';
             } else {
                 ctx.fillStyle = '#4361ee';
@@ -1263,7 +1428,6 @@
             ctx.shadowBlur = 0;
             ctx.restore();
 
-            // Hide loaded ball if Laser is active
             if (shooter.nextBall && !laserState.active) {
                 let bx = shooter.x;
                 let by = shooter.y;
@@ -1333,7 +1497,6 @@
             requestAnimationFrame(loop);
         }
 
-        init();
     </script>
 </body>
 
