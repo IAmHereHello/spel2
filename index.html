@@ -270,12 +270,127 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            flex-direction: column;
+            gap: 20px;
             background: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(5px);
             z-index: 20;
             color: white;
             font-size: 24px;
+            cursor: default;
+        }
+
+        .start-btn {
+            padding: 15px 40px;
+            font-size: 24px;
+            background: linear-gradient(135deg, #4cc9f0, #4361ee);
+            border: none;
+            border-radius: 50px;
+            color: white;
             cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+            box-shadow: 0 0 15px rgba(76, 201, 240, 0.4);
+            text-decoration: none;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 30px rgba(76, 201, 240, 0.8);
+        }
+
+        .tutorial-btn {
+            padding: 10px 30px;
+            font-size: 18px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tutorial-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: white;
+        }
+
+        #tutorial-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 30;
+        }
+
+        .tutorial-box {
+            background: #1a1a2e;
+            border: 1px solid #4361ee;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(67, 97, 238, 0.3);
+            position: relative;
+        }
+
+        .tutorial-step {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .tutorial-step.active {
+            display: flex;
+        }
+
+        .tutorial-title {
+            font-size: 32px;
+            color: #4cc9f0;
+            margin-bottom: 10px;
+        }
+
+        .tutorial-text {
+            font-size: 20px;
+            line-height: 1.6;
+            color: #ccc;
+        }
+
+        .tutorial-controls {
+            display: flex;
+            gap: 20px;
+            margin-top: 30px;
+            justify-content: center;
+        }
+
+        .tut-nav-btn {
+            padding: 10px 24px;
+            border-radius: 8px;
+            border: none;
+            background: #333;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .tut-nav-btn:hover {
+            background: #555;
+        }
+
+        .tut-nav-btn.primary {
+            background: #4361ee;
+        }
+
+        .tut-nav-btn.primary:hover {
+            background: #3a0ca3;
         }
     </style>
 </head>
@@ -322,7 +437,78 @@
         <button onclick="resetGame()">Play Again</button>
     </div>
 
-    <div id="start-overlay" onclick="startGame()">Click to Start (Enable Audio)</div>
+    <div id="start-overlay">
+        <h1>180° SHOOTER</h1>
+        <button class="start-btn" onclick="startGame()">START SPEL</button>
+        <button class="tutorial-btn" onclick="showTutorial()">HOE TE SPELEN</button>
+    </div>
+
+    <div id="tutorial-overlay">
+        <div class="tutorial-box">
+            <!-- Step 1 -->
+            <div class="tutorial-step active" id="tut-step-1">
+                <div class="tutorial-title">Welkom!</div>
+                <div class="tutorial-text">
+                    Welkom bij de <b>180 Graden Shooter</b>!<br><br>
+                    De ballen rollen over het pad naar het eindpunt.<br>
+                    Jij moet voorkomen dat ze daar komen!
+                </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="tutorial-step" id="tut-step-2">
+                <div class="tutorial-title">De Regel</div>
+                <div class="tutorial-text">
+                    Elke bal die je schiet moet samen met de bal die je raakt<br>
+                    <b>precies 180 graden</b> vormen.<br><br>
+                    Op de ballen staan twee hoeken (bijv. 60°, 60°).<br>
+                    Jij moet de ontbrekende hoek schieten!
+                </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="tutorial-step" id="tut-step-3">
+                <div class="tutorial-title">Rekenvoorbeeld</div>
+                <div class="tutorial-text">
+                    Stel een bal heeft de hoeken <b>60°</b> en <b>60°</b>.<br>
+                    Samen is dat 120°.<br><br>
+                    Om 180° te maken, heb je nog <b>60°</b> nodig.<br>
+                    Schiet dus een 60° bal om hem weg te spelen!
+                </div>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="tutorial-step" id="tut-step-4">
+                <div class="tutorial-title">Besturing & Pas op!</div>
+                <div class="tutorial-text">
+                    Richt met je muis en klik om te schieten.<br><br>
+                    ⚠️ <b>NIET SPAMMEN!</b> ⚠️<br>
+                    Als je te snel achter elkaar klikt, wordt het spel sneller en moeilijker.
+                    Mik goed en schiet rustig.
+                </div>
+            </div>
+
+            <!-- Step 5 -->
+            <div class="tutorial-step" id="tut-step-5">
+                <div class="tutorial-title">Powerups</div>
+                <div class="tutorial-text">
+                    In hogere levels speel je speciale krachten vrij:<br>
+                    🔥 <b>Vuur (Lvl 4)</b>: Blaas een groep ballen op.<br>
+                    ⚡ <b>Laser (Lvl 6)</b>: Vernietig ballen met je muis.<br><br>
+                    Veel succes!
+                </div>
+            </div>
+
+            <div class="tutorial-controls">
+                <button class="tut-nav-btn" id="tut-prev" onclick="prevStep()">Vorige</button>
+                <button class="tut-nav-btn primary" id="tut-next" onclick="nextStep()">Volgende</button>
+                <button class="tut-nav-btn primary" id="tut-close" onclick="closeTutorial()"
+                    style="display:none;">Sluiten</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="start-overlay-click-handler" style="display:none;" onclick="startGame()"></div>
 
     <canvas id="gameCanvas"></canvas>
 
@@ -419,6 +605,67 @@
                 osc.stop(audioCtx.currentTime + 0.3);
             }
         };
+
+        // --- TUTORIAL SYSTEM ---
+        let currentStep = 1;
+        const totalSteps = 5;
+
+        function showTutorial() {
+            document.getElementById('start-overlay').style.display = 'none';
+            document.getElementById('tutorial-overlay').style.display = 'flex';
+            currentStep = 1;
+            updateTutorialUI();
+        }
+
+        function closeTutorial() {
+            document.getElementById('tutorial-overlay').style.display = 'none';
+            document.getElementById('start-overlay').style.display = 'flex';
+        }
+
+        function nextStep() {
+            if (currentStep < totalSteps) {
+                currentStep++;
+                updateTutorialUI();
+            } else {
+                closeTutorial();
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateTutorialUI();
+            }
+        }
+
+        function updateTutorialUI() {
+            // Hide all steps
+            for (let i = 1; i <= totalSteps; i++) {
+                document.getElementById(`tut-step-${i}`).classList.remove('active');
+            }
+            // Show current
+            document.getElementById(`tut-step-${currentStep}`).classList.add('active');
+
+            // Buttons
+            const btnPrev = document.getElementById('tut-prev');
+            const btnNext = document.getElementById('tut-next');
+            const btnClose = document.getElementById('tut-close');
+
+            if (currentStep === 1) {
+                btnPrev.style.display = 'none';
+            } else {
+                btnPrev.style.display = 'block';
+            }
+
+            if (currentStep === totalSteps) {
+                btnNext.style.display = 'none';
+                btnClose.style.display = 'block';
+            } else {
+                btnNext.style.display = 'block';
+                btnClose.style.display = 'none';
+                btnNext.innerText = "Volgende";
+            }
+        }
 
         function startGame() {
             document.getElementById('start-overlay').style.display = 'none';
