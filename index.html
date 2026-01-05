@@ -218,6 +218,7 @@
             margin-bottom: 10px;
             background: linear-gradient(to right, #f72585, #7209b7);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             text-transform: uppercase;
             letter-spacing: 4px;
@@ -692,9 +693,8 @@
             laserCooldownMax: 2400, // 40s
             laserDuration: 600,     // 10s
 
-            // Rage (Anti-Spam)
-            rageDuration: 150,  // 2.5s
-            spamThreshold: 800, // ms between shots to count as 'fast'
+            // Penalty (Anti-Spam)
+            penaltyDuration: 300, // 5s (approx 60fps)
         };
 
         // --- MATH DEFINITIONS ---
@@ -746,9 +746,9 @@
         let rageTimer = 0;
         let currentRageMultiplier = 1.0;
 
-        // Spam Detection
-        let lastShotTime = 0;
-        let spamStreak = 0;
+        // Penalty State
+        let mistakeCount = 0;
+        let penaltyTimer = 0;
 
         // Items State
         let fireState = { unlocked: false, cooldown: 0, charge: 0 };
@@ -1013,8 +1013,8 @@
             reverseTimer = 0;
             rageTimer = 0;
             currentRageMultiplier = 1.0;
-            lastShotTime = 0;
-            spamStreak = 0;
+            mistakeCount = 0;
+            penaltyTimer = 0;
 
             fireState = { unlocked: false, cooldown: 0, charge: 0 };
             laserState = { unlocked: false, cooldown: 0, active: false, timer: 0, tick: 0 };
@@ -1072,33 +1072,14 @@
             if (shooter.cooldown > 0) return;
             if (!shooter.nextBall) return;
 
-            // SPAM CHECK (Progressive)
-            const now = Date.now();
-            if (now - lastShotTime < config.spamThreshold) {
-                spamStreak++;
-
-                if (spamStreak === 5) {
-                    createFloatText(shooter.x, shooter.y - 100, "NIET SPAMMEN (1/3)");
-                } else if (spamStreak === 6) {
-                    createFloatText(shooter.x, shooter.y - 100, "NIET SPAMMEN (2/3)");
-                } else if (spamStreak === 7) {
-                    createFloatText(shooter.x, shooter.y - 100, "STOP NU!");
-                } else if (spamStreak >= 8) {
-                    rageTimer = config.rageDuration;
-
-                    // Progressive Speed: Base 6.0 + 2.0 for every extra click
-                    let extra = spamStreak - 8;
-                    currentRageMultiplier = 6.0 + (extra * 2.0);
-
-                    SoundManager.playError();
-                    createFloatText(shooter.x, shooter.y - 150, "SUCCES");
-                    // We do NOT reset spamStreak here, so it climbs to 9, 10, etc.
-                }
-            } else {
-                spamStreak = 0;
-                currentRageMultiplier = 1.0;
+            if (penaltyTimer > 0) {
+                // Should be blocked by UI, but double check
+                SoundManager.playError();
+                createFloatText(shooter.x, shooter.y - 80, "PENALTY!");
+                return;
             }
-            lastShotTime = now;
+
+            // MISTAKE / PENALTY LOGIC is handled in Collision now (on miss)
 
             SoundManager.playShoot(); // SFX
 
@@ -1322,6 +1303,48 @@
             setTimeout(() => div.remove(), 1000);
         }
 
+        function triggerPenalty() {
+            penaltyTimer = config.penaltyDuration;
+            SoundManager.playError();
+            createFloatText(shooter.x, shooter.y - 100, "PENALTY: 5s COOLDOWN");
+
+            // FILL GAPS to prevent rollback
+            // Iterate reversed or forward? Forward is easier for gaps.
+            // balls[0] is furthest. balls[last] is closest to start.
+            // Gap is between i and i+1.
+
+            // We need to iterate backwards to safely splice? No, splicing adds elements, shifting indices.
+            // If we iterate forward (0 -> end), inserting at i+1 shifts the rest up.
+            // We just need to skip the new balls.
+
+            for (let i = 0; i < balls.length - 1; i++) {
+                let lead = balls[i];
+                let trail = balls[i + 1];
+
+                let gap = lead.distance - trail.distance;
+                let neededSpace = config.ballSpacing - 2; // slight overlap preference or exact? Matches use Spacing.
+                // gap should be config.ballSpacing. If gap > spacing * 1.5, fill it.
+
+                if (gap > config.ballSpacing * 1.5) {
+                    // How many balls to fit?
+                    // Available space = gap.
+                    // We want to fill with enough balls such that spacing is maintained.
+                    // approx count = (gap / spacing) - 1
+
+                    let distCursor = lead.distance - config.ballSpacing;
+                    while (distCursor > trail.distance + config.ballSpacing * 0.5) {
+                        // Insert ball
+                        let typeIdx = rnd(0, activeTypeCount - 1);
+                        let newBall = new Ball(distCursor, typeIdx);
+                        // Insert at i+1
+                        balls.splice(i + 1, 0, newBall);
+                        i++; // Skip this new ball in the outer loop (it becomes lead for next pair)
+                        distCursor -= config.ballSpacing;
+                    }
+                }
+            }
+        }
+
         function updateUI() {
             document.getElementById('score-display').innerText = `Score: ${score}`;
         }
@@ -1337,10 +1360,10 @@
             let statusText = "";
             let rageActive = (rageTimer > 0);
 
-            if (rageTimer > 0) {
-                rageTimer--;
-                globalVelocity *= currentRageMultiplier; // RAGE ACCELERATION
-                statusText = "😡 RAGE!!!";
+
+            if (penaltyTimer > 0) {
+                penaltyTimer--;
+                statusText = `🚫 PENALTY (${Math.ceil(penaltyTimer / 60)}s)`;
             } else if (freezeTimer > 0) {
                 freezeTimer--;
                 globalVelocity = 0;
@@ -1481,9 +1504,19 @@
             if (sum === 180) {
                 SoundManager.playMatch(); // SFX
                 resolveMatch(ballIndex, target.typeIndex);
+                mistakeCount = 0; // Reset
             } else {
                 SoundManager.playHit(); // SFX
                 insertBall(projectile, ballIndex);
+
+                // MISTAKE PENALTY
+                mistakeCount++;
+                if (mistakeCount >= 3) {
+                    triggerPenalty();
+                    mistakeCount = 0;
+                } else {
+                    createFloatText(projectile.x, projectile.y - 30, `FOUT! (${mistakeCount}/3)`);
+                }
             }
         }
 
@@ -1572,8 +1605,8 @@
             ctx.shadowBlur = 10;
             ctx.shadowColor = 'rgba(255,255,255,0.2)';
 
-            // Visual feedback for RAGE (Pulse Red)
-            if (rageTimer > 0) {
+            // Visual feedback for PENALTY (Pulse Red)
+            if (penaltyTimer > 0) {
                 ctx.strokeStyle = `rgba(255,0,0, ${0.5 + Math.sin(Date.now() / 50) * 0.5})`;
                 ctx.lineWidth = config.ballRadius * 2 + 15;
             } else {
