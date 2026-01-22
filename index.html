@@ -268,7 +268,8 @@
             left: 0;
             width: 100%;
             height: 100%;
-            display: flex;
+            display: none;
+            /* Hidden by default now, shown after login */
             justify-content: center;
             align-items: center;
             flex-direction: column;
@@ -393,10 +394,83 @@
         .tut-nav-btn.primary:hover {
             background: #3a0ca3;
         }
+
+        /* LOGIN OVERLAY CSS */
+        #login-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 30, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .login-box {
+            background: #1a1a2e;
+            padding: 40px;
+            border-radius: 20px;
+            border: 2px solid #4361ee;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(67, 97, 238, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .login-input {
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #444;
+            background: #0f0f1a;
+            color: white;
+            font-size: 18px;
+            width: 300px;
+            text-align: center;
+        }
+
+        .login-input:focus {
+            outline: none;
+            border-color: #4cc9f0;
+            box-shadow: 0 0 10px #4cc9f0;
+        }
+
+        .error-msg {
+            color: #ff0055;
+            font-weight: bold;
+            min-height: 24px;
+        }
+
+        #unlock-code-display {
+            font-size: 32px;
+            color: #4cc9f0;
+            font-weight: bold;
+            margin: 20px 0;
+            padding: 15px;
+            border: 2px dashed #4cc9f0;
+            border-radius: 10px;
+            background: rgba(76, 201, 240, 0.1);
+        }
     </style>
 </head>
 
 <body>
+
+    <!-- LOGIN OVERLAY -->
+    <div id="login-overlay">
+        <div class="login-box">
+            <h1>ZUMA 180°</h1>
+            <p>Voer je gegevens in om te starten</p>
+            <input type="text" id="player-name" class="login-input" placeholder="Jouw Naam / Pseudoniem"
+                autocomplete="off">
+            <input type="text" id="access-code" class="login-input" placeholder="Wachtwoord" autocomplete="off">
+            <div id="login-error" class="error-msg"></div>
+            <button onclick="checkLogin()">INLOGGEN</button>
+        </div>
+    </div>
 
     <div id="ui-layer">
         <div class="ui-box">
@@ -434,7 +508,13 @@
 
     <div id="game-over-screen">
         <h1 id="game-over-title">GAME OVER</h1>
-        <div style="font-size: 28px; margin-bottom: 40px; color: #ccc;" id="final-score">Score: 0</div>
+
+        <div style="font-size: 28px; margin-bottom: 20px; color: #ccc;" id="final-score">Score: 0</div>
+
+        <div id="unlock-code-display" style="display:none;">
+            CODE: PIZZA314
+        </div>
+
         <button onclick="resetGame()">Play Again</button>
     </div>
 
@@ -606,6 +686,39 @@
                 osc.stop(audioCtx.currentTime + 0.3);
             }
         };
+
+        // --- AUTH & LOGGING SYSTEM ---
+        let playerPseudonym = "";
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbytukuFv4uakCSohLYXZa-44gzMv_0jWAAQoBfLXHaMTN_TsRYK0lcVaeKhkXtbdek7XA/exec";
+
+        function checkLogin() {
+            const nameInput = document.getElementById('player-name').value.trim();
+            const codeInput = document.getElementById('access-code').value.trim().toUpperCase();
+            const errorMsg = document.getElementById('login-error');
+
+            if (!nameInput) {
+                errorMsg.innerText = "Vul eerst je naam in!";
+                return;
+            }
+            if (codeInput !== "ZUMA22") {
+                errorMsg.innerText = "Fout wachtwoord!";
+                return;
+            }
+
+            playerPseudonym = nameInput;
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('start-overlay').style.display = 'flex';
+        }
+
+        function sendLog(finalScore) {
+            if (!playerPseudonym) return;
+
+            // ?action=submit&code=[pseudoniem]&quizId=Game2_Zuma&score=[punten]&total=100
+            const url = `${GOOGLE_SCRIPT_URL}?action=submit&code=${encodeURIComponent(playerPseudonym)}&quizId=Game2_Zuma&score=${finalScore}&total=100`;
+
+            // Fire and forget (no-cors prevents reading response but allows sending)
+            fetch(url, { mode: 'no-cors' }).catch(err => console.error("Log error:", err));
+        }
 
         // --- TUTORIAL SYSTEM ---
         let currentStep = 1;
@@ -990,6 +1103,25 @@
                 mouseY = e.clientY;
             });
             window.addEventListener('mousedown', shoot);
+
+            // TOUCH SUPPORT
+            window.addEventListener('touchmove', e => {
+                e.preventDefault(); // Prevent scrolling
+                if (e.touches.length > 0) {
+                    mouseX = e.touches[0].clientX;
+                    mouseY = e.touches[0].clientY;
+                }
+            }, { passive: false });
+
+            window.addEventListener('touchstart', e => {
+                e.preventDefault();
+                if (e.touches.length > 0) {
+                    mouseX = e.touches[0].clientX;
+                    mouseY = e.touches[0].clientY;
+                    shoot();
+                }
+            }, { passive: false });
+
             requestAnimationFrame(loop);
         }
 
@@ -1741,6 +1873,14 @@
             gameState = 'gameover';
             document.getElementById('final-score').innerText = `Final Score: ${score}`;
             document.getElementById('game-over-screen').style.display = 'flex';
+
+            // Show Unlock Code
+            const unlockDiv = document.getElementById('unlock-code-display');
+            unlockDiv.style.display = 'block';
+            unlockDiv.innerText = "CODE VOLGENDE GAME: PIZZA314";
+
+            // Log Data
+            sendLog(score);
         }
 
         function loop() {
