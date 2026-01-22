@@ -4,21 +4,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The 180 Degree Shooter - Ultimate Edition</title>
+    <title>Zuma 180°: Supplementary Edition</title>
     <style>
         body {
             margin: 0;
             overflow: hidden;
-            background: radial-gradient(circle at center, #2a2a4e 0%, #1a1a2e 100%);
+            background: radial-gradient(circle at center, #1a1a2e 0%, #0f0f1a 100%);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             color: white;
             user-select: none;
+            touch-action: none;
+            /* Prevent mobile scrolling */
         }
 
         canvas {
             display: block;
         }
 
+        /* UI LAYERS */
         #ui-layer {
             position: absolute;
             top: 20px;
@@ -26,164 +29,177 @@
             pointer-events: none;
             display: flex;
             gap: 20px;
+            z-index: 10;
         }
 
         .ui-box {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
-            padding: 10px 20px;
+            padding: 15px 25px;
             border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
             display: flex;
             flex-direction: column;
             align-items: flex-start;
         }
 
         #score-display {
-            font-size: 24px;
-            font-weight: bold;
+            font-size: 28px;
+            font-weight: 800;
             color: #4cc9f0;
-            text-shadow: 0 0 10px rgba(76, 201, 240, 0.5);
+            text-shadow: 0 0 15px rgba(76, 201, 240, 0.6);
         }
 
-        #level-display {
-            font-size: 14px;
-            color: #ccc;
+        #target-display {
+            font-size: 16px;
+            color: #bbb;
             margin-top: 5px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            font-weight: 600;
         }
 
-        #powerup-display {
-            font-size: 20px;
-            color: #ffbe0b;
-            font-weight: bold;
-            display: none;
-        }
-
-        /* ITEMS BAR */
-        #item-bar {
+        /* OVERLAYS */
+        .overlay {
             position: absolute;
-            bottom: 30px;
-            right: 30px;
-            pointer-events: auto;
-            display: flex;
-            gap: 20px;
-        }
-
-        .item-slot {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            opacity: 1;
-            transition: opacity 0.3s;
-        }
-
-        .item-slot.locked {
-            opacity: 0.5;
-            filter: grayscale(1);
-            pointer-events: none;
-        }
-
-        .item-btn {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: #444;
-            border: 4px solid #666;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 32px;
-            cursor: not-allowed;
-            position: relative;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-            transition: all 0.3s;
-            overflow: hidden;
-        }
-
-        /* Ready States */
-        .item-btn.ready-fire {
-            background: radial-gradient(circle, #ff9f1c, #d00000);
-            border-color: #ffba08;
-            cursor: pointer;
-            box-shadow: 0 0 30px #d00000;
-            animation: pulse 2s infinite;
-        }
-
-        .item-btn.ready-laser {
-            background: radial-gradient(circle, #4cc9f0, #4361ee);
-            border-color: #4cc9f0;
-            cursor: pointer;
-            box-shadow: 0 0 30px #4361ee;
-            animation: pulse 2s infinite;
-        }
-
-        .item-btn.active-laser {
-            background: white;
-            box-shadow: 0 0 50px white;
-            border-color: white;
-            transform: scale(1.1);
-        }
-
-        @keyframes pulse {
-            0% {
-                transform: scale(1);
-            }
-
-            50% {
-                transform: scale(1.05);
-            }
-
-            100% {
-                transform: scale(1);
-            }
-        }
-
-        .cooldown-overlay {
-            position: absolute;
-            bottom: 0;
+            top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            /* Height animates */
-            background: rgba(0, 0, 0, 0.6);
-            transition: height 0.1s linear;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            background: rgba(10, 10, 20, 0.92);
+            backdrop-filter: blur(8px);
+            z-index: 100;
         }
 
-        .item-label {
-            margin-top: 10px;
+        h1 {
+            font-size: 56px;
+            margin-bottom: 20px;
+            background: linear-gradient(to right, #4cc9f0, #4361ee);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 0 0 30px rgba(67, 97, 238, 0.4);
+            text-align: center;
+        }
+
+        /* LOGIN FORM */
+        .login-box {
+            background: #252540;
+            padding: 40px;
+            border-radius: 20px;
+            border: 2px solid #4361ee;
+            text-align: center;
+            box-shadow: 0 0 60px rgba(67, 97, 238, 0.4);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .login-input {
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #555;
+            background: #111;
+            color: white;
+            font-size: 20px;
+            width: 280px;
+            text-align: center;
+            transition: border 0.3s;
+        }
+
+        .login-input:focus {
+            outline: none;
+            border-color: #4cc9f0;
+            box-shadow: 0 0 15px rgba(76, 201, 240, 0.3);
+        }
+
+        .btn {
+            padding: 15px 40px;
+            font-size: 22px;
+            background: linear-gradient(135deg, #4cc9f0, #4361ee);
+            border: none;
+            border-radius: 50px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
             font-weight: bold;
-            text-shadow: 0 0 5px black;
-            color: #aaa;
-            font-size: 12px;
+            box-shadow: 0 0 20px rgba(76, 201, 240, 0.4);
+            margin-top: 10px;
             text-transform: uppercase;
         }
 
-        .item-slot.locked .item-label {
-            content: "LOCKED";
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(76, 201, 240, 0.6);
         }
 
-        .lock-icon {
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .error-msg {
+            color: #ff3366;
+            font-weight: bold;
+            min-height: 24px;
+            font-size: 16px;
+        }
+
+        /* GAME OVER / WIN */
+        #unlock-code-box {
+            margin-top: 30px;
+            padding: 20px;
+            border: 3px dashed #4cc9f0;
+            background: rgba(76, 201, 240, 0.1);
+            border-radius: 15px;
             display: none;
-            position: absolute;
-            font-size: 24px;
+            text-align: center;
         }
 
-        .item-slot.locked .lock-icon {
+        .code-text {
             display: block;
+            font-size: 42px;
+            font-weight: 900;
+            color: #fff;
+            letter-spacing: 5px;
+            margin-top: 10px;
+            text-shadow: 0 0 20px #4cc9f0;
         }
 
-        /* Floating Text (Rage Feedback) */
+        /* PROGRESS BAR */
+        #progress-container {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+            z-index: 10;
+        }
+
+        #progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(to right, #4cc9f0, #4361ee);
+            transition: width 0.3s;
+        }
+
+        /* Floating Text */
         .float-text {
             position: absolute;
-            color: #ff0000;
             font-weight: bold;
-            font-size: 24px;
+            font-size: 28px;
             pointer-events: none;
-            animation: floatUp 1s forwards;
-            text-shadow: 0 0 10px black;
+            animation: floatUp 0.8s forwards;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+            z-index: 5;
         }
 
         @keyframes floatUp {
@@ -194,1727 +210,680 @@
 
             100% {
                 opacity: 0;
-                transform: translateY(-50px) scale(1.5);
+                transform: translateY(-60px) scale(1.4);
             }
-        }
-
-        #game-over-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: none;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(8px);
-            z-index: 10;
-        }
-
-        h1 {
-            font-size: 64px;
-            margin-bottom: 10px;
-            background: linear-gradient(to right, #f72585, #7209b7);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-transform: uppercase;
-            letter-spacing: 4px;
-            text-shadow: 0 0 30px rgba(247, 37, 133, 0.5);
-        }
-
-        button {
-            padding: 15px 40px;
-            font-size: 24px;
-            background: linear-gradient(135deg, #4cc9f0, #4361ee);
-            border: none;
-            border-radius: 50px;
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-weight: bold;
-            box-shadow: 0 0 15px rgba(76, 201, 240, 0.4);
-        }
-
-        button:hover {
-            transform: scale(1.1);
-            box-shadow: 0 0 30px rgba(76, 201, 240, 0.8);
-        }
-
-        .level-up-notif {
-            position: absolute;
-            top: 20%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 48px;
-            font-weight: bold;
-            color: #ffbe0b;
-            text-shadow: 0 0 20px rgba(255, 190, 11, 0.8);
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.5s, transform 0.5s;
-        }
-
-        .level-up-notif.active {
-            opacity: 1;
-            transform: translate(-50%, -80%);
-        }
-
-        #start-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: none;
-            /* Hidden by default now, shown after login */
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            gap: 20px;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(5px);
-            z-index: 20;
-            color: white;
-            font-size: 24px;
-            cursor: default;
-        }
-
-        .start-btn {
-            padding: 15px 40px;
-            font-size: 24px;
-            background: linear-gradient(135deg, #4cc9f0, #4361ee);
-            border: none;
-            border-radius: 50px;
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-weight: bold;
-            box-shadow: 0 0 15px rgba(76, 201, 240, 0.4);
-            text-decoration: none;
-        }
-
-        .start-btn:hover {
-            transform: scale(1.1);
-            box-shadow: 0 0 30px rgba(76, 201, 240, 0.8);
-        }
-
-        .tutorial-btn {
-            padding: 10px 30px;
-            font-size: 18px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 50px;
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .tutorial-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            border-color: white;
-        }
-
-        #tutorial-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: none;
-            justify-content: center;
-            align-items: center;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(10px);
-            z-index: 30;
-        }
-
-        .tutorial-box {
-            background: #1a1a2e;
-            border: 1px solid #4361ee;
-            border-radius: 20px;
-            padding: 40px;
-            max-width: 600px;
-            text-align: center;
-            box-shadow: 0 0 50px rgba(67, 97, 238, 0.3);
-            position: relative;
-        }
-
-        .tutorial-step {
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .tutorial-step.active {
-            display: flex;
-        }
-
-        .tutorial-title {
-            font-size: 32px;
-            color: #4cc9f0;
-            margin-bottom: 10px;
-        }
-
-        .tutorial-text {
-            font-size: 20px;
-            line-height: 1.6;
-            color: #ccc;
-        }
-
-        .tutorial-controls {
-            display: flex;
-            gap: 20px;
-            margin-top: 30px;
-            justify-content: center;
-        }
-
-        .tut-nav-btn {
-            padding: 10px 24px;
-            border-radius: 8px;
-            border: none;
-            background: #333;
-            color: white;
-            cursor: pointer;
-            font-size: 16px;
-            transition: all 0.2s;
-        }
-
-        .tut-nav-btn:hover {
-            background: #555;
-        }
-
-        .tut-nav-btn.primary {
-            background: #4361ee;
-        }
-
-        .tut-nav-btn.primary:hover {
-            background: #3a0ca3;
-        }
-
-        /* LOGIN OVERLAY CSS */
-        #login-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(10, 10, 30, 0.95);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 100;
-        }
-
-        .login-box {
-            background: #1a1a2e;
-            padding: 40px;
-            border-radius: 20px;
-            border: 2px solid #4361ee;
-            text-align: center;
-            box-shadow: 0 0 50px rgba(67, 97, 238, 0.5);
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .login-input {
-            padding: 15px;
-            border-radius: 10px;
-            border: 1px solid #444;
-            background: #0f0f1a;
-            color: white;
-            font-size: 18px;
-            width: 300px;
-            text-align: center;
-        }
-
-        .login-input:focus {
-            outline: none;
-            border-color: #4cc9f0;
-            box-shadow: 0 0 10px #4cc9f0;
-        }
-
-        .error-msg {
-            color: #ff0055;
-            font-weight: bold;
-            min-height: 24px;
-        }
-
-        #unlock-code-display {
-            font-size: 32px;
-            color: #4cc9f0;
-            font-weight: bold;
-            margin: 20px 0;
-            padding: 15px;
-            border: 2px dashed #4cc9f0;
-            border-radius: 10px;
-            background: rgba(76, 201, 240, 0.1);
         }
     </style>
 </head>
 
 <body>
 
-    <!-- LOGIN OVERLAY -->
-    <div id="login-overlay">
-        <div class="login-box">
-            <h1>ZUMA 180°</h1>
-            <p>Voer je gegevens in om te starten</p>
-            <input type="text" id="player-name" class="login-input" placeholder="Jouw Naam / Pseudoniem"
-                autocomplete="off">
-            <input type="text" id="access-code" class="login-input" placeholder="Wachtwoord" autocomplete="off">
-            <div id="login-error" class="error-msg"></div>
-            <button onclick="checkLogin()">INLOGGEN</button>
-        </div>
-    </div>
-
+    <!-- UI -->
     <div id="ui-layer">
         <div class="ui-box">
             <div id="score-display">Score: 0</div>
-            <div id="level-display">Level 1</div>
-        </div>
-        <div class="ui-box" id="powerup-box" style="display:none;">
-            <div id="powerup-display"></div>
+            <div id="target-display">Target: 500</div>
         </div>
     </div>
 
-    <div id="item-bar">
-        <!-- Fire Amulet (Lvl 4) -->
-        <div id="slot-fire" class="item-slot locked">
-            <div id="btn-fire" class="item-btn" onclick="activateFire()">
-                <span class="icon">🔥</span>
-                <span class="lock-icon">🔒</span>
-                <div id="overlay-fire" class="cooldown-overlay"></div>
-            </div>
-            <div id="label-fire" class="item-label">Lvl 4</div>
-        </div>
+    <div id="progress-container">
+        <div id="progress-fill"></div>
+    </div>
 
-        <!-- Laser Amulet (Lvl 6) -->
-        <div id="slot-laser" class="item-slot locked">
-            <div id="btn-laser" class="item-btn" onclick="activateLaser()">
-                <span class="icon">⚡</span>
-                <span class="lock-icon">🔒</span>
-                <div id="overlay-laser" class="cooldown-overlay"></div>
-            </div>
-            <div id="label-laser" class="item-label">Lvl 6</div>
+    <!-- 1. LOGIN SCREEN -->
+    <div id="login-screen" class="overlay">
+        <div class="login-box">
+            <h1>ZUMA 180°</h1>
+            <p style="color:#ccc;">Supplementary Angles Edition</p>
+            <input type="text" id="inp-name" class="login-input" placeholder="Jouw Naam" autocomplete="off">
+            <input type="text" id="inp-pass" class="login-input" placeholder="Wachtwoord" autocomplete="off">
+            <div id="login-msg" class="error-msg"></div>
+            <button class="btn" onclick="tryLogin()">Login</button>
         </div>
     </div>
 
-    <div id="level-up-msg" class="level-up-notif">LEVEL UP!</div>
+    <!-- 2. START SCREEN -->
+    <div id="start-screen" class="overlay" style="display: none;">
+        <h1>READY?</h1>
+        <p style="color: #aaa; font-size: 20px; max-width: 600px; text-align: center; line-height: 1.6;">
+            De ballen rollen! <br>
+            Elke bal heeft een hoek (bijv. <b>110°</b>).<br>
+            Schiet de <b>supplementaire hoek</b> (wat samen 180° maakt).<br>
+            <br>
+            Voorbeeld: <b>110° + 70° = 180°</b>
+        </p>
+        <button class="btn" onclick="startGame()">Start Game</button>
+    </div>
 
-    <div id="game-over-screen">
-        <h1 id="game-over-title">GAME OVER</h1>
+    <!-- 3. GAME OVER SCREEN -->
+    <div id="game-over-screen" class="overlay" style="display: none;">
+        <h1 id="go-title">WINNER!</h1>
+        <div style="font-size: 24px; color: #ccc;" id="go-score">Final Score: 500</div>
 
-        <div style="font-size: 28px; margin-bottom: 20px; color: #ccc;" id="final-score">Score: 0</div>
-
-        <div id="unlock-code-display" style="display:none;">
-            CODE: PIZZA314
+        <div id="unlock-code-box">
+            <span style="font-size:18px; color:#4cc9f0; text-transform:uppercase;">Code Volgende Level:</span>
+            <span class="code-text">PIZZA314</span>
         </div>
 
-        <button onclick="resetGame()">Play Again</button>
+        <button class="btn" onclick="resetGame()" style="margin-top: 30px;">Play Again</button>
     </div>
 
-    <div id="start-overlay">
-        <h1>180° SHOOTER</h1>
-        <button class="start-btn" onclick="startGame()">START SPEL</button>
-        <button class="tutorial-btn" onclick="showTutorial()">HOE TE SPELEN</button>
-    </div>
-
-    <div id="tutorial-overlay">
-        <div class="tutorial-box">
-            <!-- Step 1 -->
-            <div class="tutorial-step active" id="tut-step-1">
-                <div class="tutorial-title">Welkom!</div>
-                <div class="tutorial-text">
-                    Welkom bij de <b>180 Graden Shooter</b>!<br><br>
-                    De ballen rollen over het pad naar het eindpunt.<br>
-                    Jij moet voorkomen dat ze daar komen!
-                </div>
-            </div>
-
-            <!-- Step 2 -->
-            <div class="tutorial-step" id="tut-step-2">
-                <div class="tutorial-title">De Regel</div>
-                <div class="tutorial-text">
-                    Elke bal die je schiet moet samen met de bal die je raakt<br>
-                    <b>precies 180 graden</b> vormen.<br><br>
-                    Op de ballen staan twee hoeken (bijv. 60°, 60°).<br>
-                    Jij moet de ontbrekende hoek schieten!
-                </div>
-            </div>
-
-            <!-- Step 3 -->
-            <div class="tutorial-step" id="tut-step-3">
-                <div class="tutorial-title">Rekenvoorbeeld</div>
-                <div class="tutorial-text">
-                    Stel een bal heeft de hoeken <b>60°</b> en <b>60°</b>.<br>
-                    Samen is dat 120°.<br><br>
-                    Om 180° te maken, heb je nog <b>60°</b> nodig.<br>
-                    Schiet dus een 60° bal om hem weg te spelen!
-                </div>
-            </div>
-
-            <!-- Step 4 -->
-            <div class="tutorial-step" id="tut-step-4">
-                <div class="tutorial-title">Besturing & Pas op!</div>
-                <div class="tutorial-text">
-                    Richt met je muis en klik om te schieten.<br><br>
-                    ⚠️ <b>NIET SPAMMEN!</b> ⚠️<br>
-                    Als je te snel achter elkaar klikt, wordt het spel sneller en moeilijker.
-                    Mik goed en schiet rustig.
-                </div>
-            </div>
-
-            <!-- Step 5 -->
-            <div class="tutorial-step" id="tut-step-5">
-                <div class="tutorial-title">Powerups</div>
-                <div class="tutorial-text">
-                    In hogere levels speel je speciale krachten vrij:<br>
-                    🔥 <b>Vuur (Lvl 4)</b>: Blaas een groep ballen op.<br>
-                    ⚡ <b>Laser (Lvl 6)</b>: Vernietig ballen met je muis.<br><br>
-                    Veel succes!
-                </div>
-            </div>
-
-            <div class="tutorial-controls">
-                <button class="tut-nav-btn" id="tut-prev" onclick="prevStep()">Vorige</button>
-                <button class="tut-nav-btn primary" id="tut-next" onclick="nextStep()">Volgende</button>
-                <button class="tut-nav-btn primary" id="tut-close" onclick="closeTutorial()"
-                    style="display:none;">Sluiten</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="start-overlay-click-handler" style="display:none;" onclick="startGame()"></div>
-
-    <canvas id="gameCanvas"></canvas>
+    <canvas id="canvas"></canvas>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+        /**
+         * CONFIGURATION
+         */
+        const CONFIG = {
+            WinScore: 500,
+            Password: "ZUMA22",
+            LogURL: "https://script.google.com/macros/s/AKfycbytukuFv4uakCSohLYXZa-44gzMv_0jWAAQoBfLXHaMTN_TsRYK0lcVaeKhkXtbdek7XA/exec",
 
-        // --- AUDIO MANAGER ---
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        const audioCtx = new AudioContext();
-
-        const SoundManager = {
-            playTone: (freq, type, duration, vol = 0.1) => {
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = type;
-                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + duration);
-            },
-            playShoot: () => {
-                SoundManager.playTone(600, 'sine', 0.1, 0.1);
-                // Pitch drop
-                if (audioCtx.state === 'suspended') return;
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.1);
-            },
-            playHit: () => {
-                // Thud
-                SoundManager.playTone(100, 'square', 0.1, 0.05);
-            },
-            playMatch: () => {
-                // Ding
-                SoundManager.playTone(880, 'sine', 0.3, 0.1);
-                setTimeout(() => SoundManager.playTone(1100, 'sine', 0.3, 0.1), 50);
-            },
-            playExplosion: () => {
-                if (audioCtx.state === 'suspended') return;
-                const bufferSize = audioCtx.sampleRate * 0.5; // 0.5 sec
-                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-                const data = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) {
-                    data[i] = Math.random() * 2 - 1;
-                }
-                const noise = audioCtx.createBufferSource();
-                noise.buffer = buffer;
-                const gain = audioCtx.createGain();
-                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-                noise.connect(gain);
-                gain.connect(audioCtx.destination);
-                noise.start();
-            },
-            playLaser: () => {
-                // Buzz
-                if (audioCtx.state === 'suspended') return;
-                const osc = audioCtx.createOscillator();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(100, audioCtx.currentTime);
-                const gain = audioCtx.createGain();
-                gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.1);
-            },
-            playError: () => {
-                // Error / Rage Sound (Low Sawtooth Drop)
-                if (audioCtx.state === 'suspended') return;
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-                osc.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.3);
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.3);
-            }
+            // Gameplay Tuning
+            BallRadius: 32,
+            BallSpacing: 60,   // Distance between centers
+            BaseSpeed: 0.65,   // +20% from orig 0.5 roughly
+            ShotSpeed: 25,     // Snappy
+            SpawnRate: 45,     // Frames approx (controlled by DT now)
         };
 
-        // --- AUTH & LOGGING SYSTEM ---
+        // SUPPLEMENTARY ANGLES POOL (Pairs summing to 180)
+        const ANGLE_PAIRS = [
+            [10, 170], [20, 160], [30, 150], [40, 140],
+            [50, 130], [60, 120], [70, 110], [80, 100],
+            [90, 90], [45, 135], [135, 45], [100, 80]
+        ];
+
+        // Colors for distinct values
+        const COLORS = [
+            '#FF595E', '#FFCA3A', '#8AC926', '#1982C4', '#6A4C93', '#F15BB5', '#00BBF9'
+        ];
+
+        /**
+         * GAME STATE
+         */
+        let canvas, ctx;
+        let width, height;
+
+        // Auth
         let playerPseudonym = "";
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbytukuFv4uakCSohLYXZa-44gzMv_0jWAAQoBfLXHaMTN_TsRYK0lcVaeKhkXtbdek7XA/exec";
 
-        function checkLogin() {
-            const nameInput = document.getElementById('player-name').value.trim();
-            const codeInput = document.getElementById('access-code').value.trim().toUpperCase();
-            const errorMsg = document.getElementById('login-error');
+        // Game
+        let isPlaying = false;
+        let score = 0;
+        let lastTime = 0;
+        let spawnTimer = 0;
 
-            if (!nameInput) {
-                errorMsg.innerText = "Vul eerst je naam in!";
-                return;
-            }
-            if (codeInput !== "ZUMA22") {
-                errorMsg.innerText = "Fout wachtwoord!";
-                return;
-            }
-
-            playerPseudonym = nameInput;
-            document.getElementById('login-overlay').style.display = 'none';
-            document.getElementById('start-overlay').style.display = 'flex';
-        }
-
-        function sendLog(finalScore) {
-            if (!playerPseudonym) return;
-
-            // ?action=submit&code=[pseudoniem]&quizId=Game2_Zuma&score=[punten]&total=100
-            const url = `${GOOGLE_SCRIPT_URL}?action=submit&code=${encodeURIComponent(playerPseudonym)}&quizId=Game2_Zuma&score=${finalScore}&total=100`;
-
-            // Fire and forget (no-cors prevents reading response but allows sending)
-            fetch(url, { mode: 'no-cors' }).catch(err => console.error("Log error:", err));
-        }
-
-        // --- TUTORIAL SYSTEM ---
-        let currentStep = 1;
-        const totalSteps = 5;
-
-        function showTutorial() {
-            document.getElementById('start-overlay').style.display = 'none';
-            document.getElementById('tutorial-overlay').style.display = 'flex';
-            currentStep = 1;
-            updateTutorialUI();
-        }
-
-        function closeTutorial() {
-            document.getElementById('tutorial-overlay').style.display = 'none';
-            document.getElementById('start-overlay').style.display = 'flex';
-        }
-
-        function nextStep() {
-            if (currentStep < totalSteps) {
-                currentStep++;
-                updateTutorialUI();
-            } else {
-                closeTutorial();
-            }
-        }
-
-        function prevStep() {
-            if (currentStep > 1) {
-                currentStep--;
-                updateTutorialUI();
-            }
-        }
-
-        function updateTutorialUI() {
-            // Hide all steps
-            for (let i = 1; i <= totalSteps; i++) {
-                document.getElementById(`tut-step-${i}`).classList.remove('active');
-            }
-            // Show current
-            document.getElementById(`tut-step-${currentStep}`).classList.add('active');
-
-            // Buttons
-            const btnPrev = document.getElementById('tut-prev');
-            const btnNext = document.getElementById('tut-next');
-            const btnClose = document.getElementById('tut-close');
-
-            if (currentStep === 1) {
-                btnPrev.style.display = 'none';
-            } else {
-                btnPrev.style.display = 'block';
-            }
-
-            if (currentStep === totalSteps) {
-                btnNext.style.display = 'none';
-                btnClose.style.display = 'block';
-            } else {
-                btnNext.style.display = 'block';
-                btnClose.style.display = 'none';
-                btnNext.innerText = "Volgende";
-            }
-        }
-
-        function startGame() {
-            document.getElementById('start-overlay').style.display = 'none';
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            init();
-        }
-
-        // --- Game Config ---
-        const config = {
-            ballRadius: 32,
-            ballSpeed: 0.5,
-            backSpeed: 3.0,
-            ballSpacing: 58,
-            shotSpeed: 20,
-            spawnInterval: 48,
-            shootDelay: 15,
-            powerupChance: 0.08,
-
-            // Fire Amulet
-            fireCooldownMax: 1200,
-            fireChargeReq: 10,
-
-            // Laser Amulet
-            laserCooldownMax: 2400, // 40s
-            laserDuration: 600,     // 10s
-
-            // Penalty (Anti-Spam)
-            penaltyDuration: 300, // 5s (approx 60fps)
-        };
-
-        // --- MATH DEFINITIONS ---
-        const ANGLE_DEFS = [
-            { a: 50, b: 60, c: 70 },
-            { a: 90, b: 40, c: 50 },
-            { a: 30, b: 30, c: 120 },
-            { a: 45, b: 45, c: 90 },
-            { a: 60, b: 60, c: 60 },
-            { a: 20, b: 80, c: 80 },
-            { a: 100, b: 40, c: 40 }
-        ];
-
-        let COLOR_POOL = [
-            '#FF595E', '#FFCA3A', '#8AC926', '#1982C4', '#6A4C93', '#FB5607', '#FF006E'
-        ];
-
-        let typeColorMap = [];
-
-        const POWERUPS = [
-            { type: 'flame', icon: '🔥', duration: 0 },
-            { type: 'freeze', icon: '❄️', duration: 300 },
-            { type: 'reverse', icon: '⏪', duration: 180 }
-        ];
-
-        // --- State ---
+        // Entities
+        let path = [];
+        let pathLength = 0;
         let balls = [];
         let projectiles = [];
         let particles = [];
-        let pathPoints = [];
+
+        // Shooter
         let shooter = {
             x: 0, y: 0, angle: 0,
-            nextBall: null,
-            queue: [],
+            currentVal: 0,
+            nextVal: 0,
             cooldown: 0
         };
-        let score = 0;
-        let gameState = 'waiting';
-        let mouseX = 0;
-        let mouseY = 0;
-        let spawnTimer = 0;
 
-        let activeTypeCount = 3;
-        let currentLevel = 1;
+        // Input
+        let mouse = { x: 0, y: 0 };
 
-        // Effect State
-        let freezeTimer = 0;
-        let reverseTimer = 0;
-        let rageTimer = 0;
-        let currentRageMultiplier = 1.0;
-
-        // Penalty State
-        let mistakeCount = 0;
-        let penaltyTimer = 0;
-
-        // Items State
-        let fireState = { unlocked: false, cooldown: 0, charge: 0 };
-        let laserState = { unlocked: false, cooldown: 0, active: false, timer: 0, tick: 0 };
-
-        function rnd(min, max) {
-            return Math.floor(Math.random() * (max - min + 1)) + min;
-        }
-
-        function shuffleColors() {
-            for (let i = COLOR_POOL.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [COLOR_POOL[i], COLOR_POOL[j]] = [COLOR_POOL[j], COLOR_POOL[i]];
-            }
-            typeColorMap = [];
-            for (let i = 0; i < ANGLE_DEFS.length; i++) {
-                typeColorMap.push(COLOR_POOL[i]);
-            }
-            projectiles.forEach(p => {
-                p.color = typeColorMap[p.typeIndex];
-            });
-        }
-
-        function generatePath() {
-            pathPoints = [];
-            const w = canvas.width;
-            const h = canvas.height;
-            const steps = 3000;
-
-            for (let i = 0; i <= steps; i++) {
-                let t = i / steps;
-                let x, y;
-                const cx = w / 2;
-                const cy = h / 2;
-                const maxR = Math.min(w, h) * 0.45;
-                const loops = 2.5;
-                const angleOffset = Math.PI;
-                const r = maxR * (1 - t);
-                const theta = angleOffset + t * loops * Math.PI * 2;
-
-                x = cx + r * Math.cos(theta);
-                y = cy + r * Math.sin(theta);
-                pathPoints.push({ x, y });
-            }
-        }
-
-        class Ball {
-            constructor(distance, typeIndex = -1) {
-                this.distance = distance;
-                this.active = true;
-
-                if (typeIndex === -1) {
-                    typeIndex = rnd(0, activeTypeCount - 1);
-                }
-                this.typeIndex = typeIndex;
-                const type = ANGLE_DEFS[typeIndex];
-
-                this.angles = [type.a, type.b];
-                this.requiredAngle = type.c;
-
-                this.powerup = null;
-                if (Math.random() < config.powerupChance) {
-                    this.powerup = POWERUPS[rnd(0, POWERUPS.length - 1)];
-                }
-            }
-
-            draw() {
-                if (!this.active) return;
-                const pos = getPositionAtDistance(this.distance);
-                if (!pos) return;
-
-                const currentColor = typeColorMap[this.typeIndex];
-
-                ctx.beginPath();
-                ctx.arc(pos.x, pos.y, config.ballRadius, 0, Math.PI * 2);
-                ctx.fillStyle = currentColor;
-                ctx.fill();
-
-                let grad = ctx.createRadialGradient(
-                    pos.x - config.ballRadius * 0.3,
-                    pos.y - config.ballRadius * 0.3,
-                    config.ballRadius * 0.1,
-                    pos.x,
-                    pos.y,
-                    config.ballRadius
-                );
-                grad.addColorStop(0, 'rgba(255,255,255,0.4)');
-                grad.addColorStop(1, 'rgba(0,0,0,0.2)');
-                ctx.fillStyle = grad;
-                ctx.fill();
-
-                ctx.beginPath();
-                ctx.arc(pos.x - config.ballRadius * 0.4, pos.y - config.ballRadius * 0.4, config.ballRadius * 0.15, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-                ctx.fill();
-
-                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-                ctx.lineWidth = 1;
-                ctx.stroke();
-
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-
-                if (this.powerup) {
-                    ctx.font = '24px Arial';
-                    ctx.fillText(this.powerup.icon, pos.x, pos.y - 12);
-
-                    ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 16px "Segoe UI", Arial';
-                    ctx.fillText(`${this.angles[0]},${this.angles[1]}`, pos.x, pos.y + 14);
-                } else {
-                    ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 20px "Segoe UI", Arial';
-                    ctx.fillText(`${this.angles[0]},${this.angles[1]}`, pos.x, pos.y);
-                }
-            }
-        }
-
-        class Projectile {
-            constructor(x, y, angle, typeIndex) {
-                this.x = x;
-                this.y = y;
-                this.vx = Math.cos(angle) * config.shotSpeed;
-                this.vy = Math.sin(angle) * config.shotSpeed;
-
-                this.typeIndex = typeIndex;
-                const type = ANGLE_DEFS[typeIndex];
-                this.value = type.c;
-                this.color = typeColorMap[typeIndex];
-
-                this.radius = config.ballRadius;
-                this.active = true;
-            }
-
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
-                    this.active = false;
-                }
-            }
-
-            draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-
-                let grad = ctx.createRadialGradient(
-                    this.x - this.radius * 0.3,
-                    this.y - this.radius * 0.3,
-                    this.radius * 0.1,
-                    this.x,
-                    this.y,
-                    this.radius
-                );
-                grad.addColorStop(0, 'rgba(255,255,255,0.9)');
-                grad.addColorStop(0.5, 'rgba(200,200,255,0.3)');
-                grad.addColorStop(1, 'rgba(255,255,255,0.1)');
-
-                ctx.fillStyle = grad;
-                ctx.fill();
-
-                ctx.strokeStyle = 'rgba(200, 200, 255, 0.8)';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 22px "Segoe UI", Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.shadowColor = 'rgba(0,0,0,0.8)';
-                ctx.shadowBlur = 4;
-                ctx.fillText(this.value + '°', this.x, this.y);
-                ctx.shadowBlur = 0;
-            }
-        }
-
-        class Particle {
-            constructor(x, y, color) {
-                this.x = x;
-                this.y = y;
-                const angle = Math.random() * Math.PI * 2;
-                // Faster explosion speed (Splatter)
-                const speed = Math.random() * 8 + 4;
-                this.vx = Math.cos(angle) * speed;
-                this.vy = Math.sin(angle) * speed;
-                this.life = 1.0;
-                this.color = color;
-                this.size = Math.random() * 6 + 3;
-            }
-
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.life -= 0.03;
-                this.size *= 0.92;
-                this.vx *= 0.95;
-                this.vy *= 0.95;
-            }
-
-            draw() {
-                ctx.globalAlpha = Math.max(0, this.life);
-                ctx.fillStyle = this.color;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.globalAlpha = 1.0;
-            }
-        }
-
-        function getPositionAtDistance(dist) {
-            if (pathPoints.length === 0) return { x: 0, y: 0 };
-            if (dist < 0) return pathPoints[0];
-
-            const totalLen = _totalPathLength;
-            let percent = dist / totalLen;
-            if (percent >= 1) return null;
-
-            let idx = Math.floor(percent * pathPoints.length);
-            return pathPoints[idx];
-        }
-
-        let _totalPathLength = 0;
-        function calculatePathLength() {
-            let d = 0;
-            for (let i = 1; i < pathPoints.length; i++) {
-                const dx = pathPoints[i].x - pathPoints[i - 1].x;
-                const dy = pathPoints[i].y - pathPoints[i - 1].y;
-                d += Math.sqrt(dx * dx + dy * dy);
-            }
-            _totalPathLength = d;
-        }
-
-        function init() {
+        /**
+         * INITIALIZATION
+         */
+        window.onload = () => {
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
             resize();
-            resetGame();
             window.addEventListener('resize', resize);
-            window.addEventListener('mousemove', e => {
-                mouseX = e.clientX;
-                mouseY = e.clientY;
-            });
-            window.addEventListener('mousedown', shoot);
 
-            // TOUCH SUPPORT
+            // Inputs
+            window.addEventListener('mousemove', e => {
+                mouse.x = e.clientX;
+                mouse.y = e.clientY;
+            });
+            window.addEventListener('mousedown', handleClick);
+
+            // Touch
             window.addEventListener('touchmove', e => {
-                e.preventDefault(); // Prevent scrolling
+                e.preventDefault();
                 if (e.touches.length > 0) {
-                    mouseX = e.touches[0].clientX;
-                    mouseY = e.touches[0].clientY;
+                    mouse.x = e.touches[0].clientX;
+                    mouse.y = e.touches[0].clientY;
                 }
             }, { passive: false });
-
             window.addEventListener('touchstart', e => {
                 e.preventDefault();
                 if (e.touches.length > 0) {
-                    mouseX = e.touches[0].clientX;
-                    mouseY = e.touches[0].clientY;
-                    shoot();
+                    mouse.x = e.touches[0].clientX;
+                    mouse.y = e.touches[0].clientY;
+                    handleClick();
                 }
             }, { passive: false });
 
             requestAnimationFrame(loop);
-        }
+        };
 
         function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            shooter.x = canvas.width / 2;
-            shooter.y = canvas.height / 2;
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            shooter.x = width / 2;
+            shooter.y = height / 2;
             generatePath();
-            calculatePathLength();
+        }
+
+        // Generate Spiral Path
+        function generatePath() {
+            path = [];
+            const cx = width / 2;
+            const cy = height / 2;
+            const maxR = Math.min(width, height) * 0.45;
+            const loops = 3;
+            const points = 1500;
+
+            for (let i = 0; i <= points; i++) {
+                let t = i / points;
+                // Spiral inwards
+                let angle = Math.PI + t * Math.PI * 2 * loops;
+                let r = maxR * (1 - t);
+
+                path.push({
+                    x: cx + r * Math.cos(angle),
+                    y: cy + r * Math.sin(angle)
+                });
+            }
+
+            // Calculate total length for interpolation
+            pathLength = 0;
+            for (let i = 1; i < path.length; i++) {
+                let dx = path[i].x - path[i - 1].x;
+                let dy = path[i].y - path[i - 1].y;
+                pathLength += Math.sqrt(dx * dx + dy * dy);
+            }
+        }
+
+        /**
+         * LOGIC & FLOW
+         */
+        function tryLogin() {
+            const name = document.getElementById('inp-name').value.trim();
+            const pass = document.getElementById('inp-pass').value.trim().toUpperCase();
+            const msg = document.getElementById('login-msg');
+
+            if (!name) { msg.innerText = "Naam is verplicht!"; return; }
+            if (pass !== CONFIG.Password) { msg.innerText = "Verkeerd Wachtwoord!"; return; }
+
+            playerPseudonym = name;
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('start-screen').style.display = 'flex';
+        }
+
+        function startGame() {
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('game-over-screen').style.display = 'none';
+            resetGame();
+            isPlaying = true;
         }
 
         function resetGame() {
+            score = 0;
             balls = [];
             projectiles = [];
             particles = [];
-            score = 0;
-            activeTypeCount = 3;
-            currentLevel = 1;
-            freezeTimer = 0;
-            reverseTimer = 0;
-            rageTimer = 0;
-            currentRageMultiplier = 1.0;
-            mistakeCount = 0;
-            penaltyTimer = 0;
-
-            fireState = { unlocked: false, cooldown: 0, charge: 0 };
-            laserState = { unlocked: false, cooldown: 0, active: false, timer: 0, tick: 0 };
-
-            document.getElementById('slot-fire').className = "item-slot locked";
-            document.getElementById('slot-laser').className = "item-slot locked";
-            document.getElementById('label-fire').innerText = "LOCKED (Lvl 4)";
-            document.getElementById('label-laser').innerText = "LOCKED (Lvl 6)";
-
-            shooter.queue = [];
-            shuffleColors();
-            for (let i = 0; i < 3; i++) {
-                shooter.queue.push(rnd(0, activeTypeCount - 1));
-            }
-
-            document.getElementById('score-display').innerText = `Score: 0`;
-            document.getElementById('level-display').innerText = `Level 1`;
-            document.getElementById('game-over-screen').style.display = 'none';
-            document.getElementById('powerup-box').style.display = 'none';
-
-            // Clear floating text
-            const floats = document.querySelectorAll('.float-text');
-            floats.forEach(el => el.remove());
-
-            gameState = 'playing';
             spawnTimer = 0;
+            shooter.queue = [];
+
+            // Load initial queue
             reloadShooter();
-        }
-
-        function reloadShooter() {
-            let typeIdx = shooter.queue.shift();
-
-            let newType = rnd(0, activeTypeCount - 1);
-            if (balls.length > 0 && Math.random() > 0.4) {
-                const existing = balls[rnd(0, balls.length - 1)];
-                newType = existing.typeIndex;
-            }
-            shooter.queue.push(newType);
-
-            shooter.nextBall = {
-                typeIndex: typeIdx,
-                angle: ANGLE_DEFS[typeIdx].c,
-                color: typeColorMap[typeIdx]
-            };
-        }
-
-        function shoot() {
-            if (gameState !== 'playing') return;
-            if (laserState.active) return;
-
-            if (mouseX > window.innerWidth - 250 && mouseY > window.innerHeight - 150) {
-                return;
-            }
-
-            if (shooter.cooldown > 0) return;
-            if (!shooter.nextBall) return;
-
-            if (penaltyTimer > 0) {
-                // Should be blocked by UI, but double check
-                SoundManager.playError();
-                createFloatText(shooter.x, shooter.y - 80, "PENALTY!");
-                return;
-            }
-
-            // MISTAKE / PENALTY LOGIC is handled in Collision now (on miss)
-
-            SoundManager.playShoot(); // SFX
-
-            projectiles.push(new Projectile(
-                shooter.x,
-                shooter.y,
-                shooter.angle,
-                shooter.nextBall.typeIndex
-            ));
-
-            shooter.cooldown = config.shootDelay;
             reloadShooter();
-        }
-
-        function checkLevelUp() {
-            let nextLevel = 1;
-            if (score >= 500) nextLevel = 2;
-            if (score >= 1500) nextLevel = 3;
-            if (score >= 3000) nextLevel = 4;
-            if (score >= 5000) nextLevel = 5;
-            if (score >= 7500) nextLevel = 6;
-            if (score >= 10000) nextLevel = 7;
-
-            if (nextLevel > currentLevel) {
-                currentLevel = nextLevel;
-                shuffleColors();
-                activeTypeCount++;
-                if (activeTypeCount > ANGLE_DEFS.length) activeTypeCount = ANGLE_DEFS.length;
-
-                const msg = document.getElementById('level-up-msg');
-                msg.classList.add('active');
-                setTimeout(() => msg.classList.remove('active'), 2000);
-
-                document.getElementById('level-display').innerText = `Level ${currentLevel}`;
-
-                if (currentLevel >= 4 && !fireState.unlocked) {
-                    fireState.unlocked = true;
-                    document.getElementById('slot-fire').classList.remove('locked');
-                    document.getElementById('label-fire').innerText = "Charging 0/10";
-                }
-                if (currentLevel >= 6 && !laserState.unlocked) {
-                    laserState.unlocked = true;
-                    document.getElementById('slot-laser').classList.remove('locked');
-                    document.getElementById('label-laser').innerText = "Reference";
-                }
-            }
-        }
-
-        function updateItems() {
-            if (fireState.unlocked) {
-                if (fireState.cooldown > 0) fireState.cooldown--;
-
-                const btn = document.getElementById('btn-fire');
-                const label = document.getElementById('label-fire');
-                const overlay = document.getElementById('overlay-fire');
-
-                if (fireState.cooldown > 0) {
-                    let pct = fireState.cooldown / config.fireCooldownMax;
-                    overlay.style.height = (pct * 100) + '%';
-                    label.innerText = `${Math.ceil(fireState.cooldown / 60)}s`;
-                    btn.classList.remove('ready-fire');
-                } else if (fireState.charge < config.fireChargeReq) {
-                    overlay.style.height = '0%';
-                    label.innerText = `${fireState.charge}/${config.fireChargeReq}`;
-                    btn.classList.remove('ready-fire');
-                } else {
-                    overlay.style.height = '0%';
-                    label.innerText = `READY!`;
-                    btn.classList.add('ready-fire');
-                }
-            }
-
-            if (laserState.unlocked) {
-                if (laserState.cooldown > 0 && !laserState.active) {
-                    laserState.cooldown--;
-                }
-
-                const btn = document.getElementById('btn-laser');
-                const label = document.getElementById('label-laser');
-                const overlay = document.getElementById('overlay-laser');
-
-                if (laserState.active) {
-                    btn.classList.add('active-laser');
-                    label.innerText = "ACTIVE!";
-                    overlay.style.height = '0%';
-
-                    laserState.timer--;
-                    if (laserState.timer <= 0) {
-                        laserState.active = false;
-                        laserState.cooldown = config.laserCooldownMax;
-                        btn.classList.remove('active-laser');
-                    } else {
-                        laserLogic();
-                    }
-                } else {
-                    if (laserState.cooldown > 0) {
-                        let pct = laserState.cooldown / config.laserCooldownMax;
-                        overlay.style.height = (pct * 100) + '%';
-                        label.innerText = `${Math.ceil(laserState.cooldown / 60)}s`;
-                        btn.classList.remove('ready-laser');
-                    } else {
-                        overlay.style.height = '0%';
-                        label.innerText = `READY!`;
-                        btn.classList.add('ready-laser');
-                    }
-                }
-            }
-        }
-
-        function activateFire() {
-            if (!fireState.unlocked) return;
-            if (fireState.cooldown > 0) return;
-            if (fireState.charge < config.fireChargeReq) return;
-            if (balls.length === 0) return;
-
-            let count = Math.min(balls.length, 10);
-            for (let i = 0; i < count; i++) {
-                SoundManager.playExplosion();
-                createExplosion(getPositionAtDistance(balls[i].distance), '#FF0000');
-            }
-
-            balls.splice(0, count);
-            fireState.cooldown = config.fireCooldownMax;
-            fireState.charge = 0;
-            score += 500;
-        }
-
-        function activateLaser() {
-            if (!laserState.unlocked) return;
-            if (laserState.cooldown > 0) return;
-            if (laserState.active) return;
-
-            laserState.active = true;
-            laserState.timer = config.laserDuration;
-        }
-
-        function laserLogic() {
-            SoundManager.playLaser(); // SFX loop
-
-            const dx = mouseX - shooter.x;
-            const dy = mouseY - shooter.y;
-            const angle = Math.atan2(dy, dx);
-
-            let maxDist = Math.max(canvas.width, canvas.height);
-            let closestDist = maxDist;
-            let hitIndex = -1;
-
-            const sx = shooter.x; const sy = shooter.y;
-            const dirX = Math.cos(angle); const dirY = Math.sin(angle);
-
-            for (let i = 0; i < balls.length; i++) {
-                const b = balls[i];
-                const p = getPositionAtDistance(b.distance);
-                if (!p) continue;
-
-                const px = p.x - sx; const py = p.y - sy;
-                const t = px * dirX + py * dirY;
-
-                if (t > 0) {
-                    const cx = sx + t * dirX;
-                    const cy = sy + t * dirY;
-
-                    const distSq = (p.x - cx) ** 2 + (p.y - cy) ** 2;
-                    if (distSq < config.ballRadius * config.ballRadius) {
-                        if (t < closestDist) {
-                            closestDist = t;
-                            hitIndex = i;
-                        }
-                    }
-                }
-            }
-
-            const endX = sx + closestDist * dirX;
-            const endY = sy + closestDist * dirY;
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.moveTo(sx, sy);
-            ctx.lineTo(endX, endY);
-            ctx.strokeStyle = '#4361ee';
-            ctx.lineWidth = 10 + Math.random() * 5;
-            ctx.lineCap = 'round';
-            ctx.shadowColor = '#4cc9f0';
-            ctx.shadowBlur = 20;
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.moveTo(sx, sy);
-            ctx.lineTo(endX, endY);
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 4;
-            ctx.stroke();
-
-            if (hitIndex !== -1) {
-                ctx.beginPath();
-                ctx.arc(endX, endY, 20 + Math.random() * 10, 0, Math.PI * 2);
-                ctx.fillStyle = '#fff';
-                ctx.fill();
-
-                laserState.tick++;
-                // FASTER DESTROY (poppen sneller)
-                if (laserState.tick > 4) {
-                    const b = balls[hitIndex];
-                    SoundManager.playExplosion();
-                    createExplosion(getPositionAtDistance(b.distance), typeColorMap[b.typeIndex]);
-                    balls.splice(hitIndex, 1);
-                    laserState.tick = 0;
-                    score += 50;
-                }
-            }
-            ctx.restore();
-        }
-
-        function createFloatText(x, y, text) {
-            const div = document.createElement('div');
-            div.className = 'float-text';
-            div.style.left = x + 'px';
-            div.style.top = y + 'px';
-            div.innerText = text;
-            document.body.appendChild(div);
-            setTimeout(() => div.remove(), 1000);
-        }
-
-        function triggerPenalty() {
-            penaltyTimer = config.penaltyDuration;
-            SoundManager.playError();
-            createFloatText(shooter.x, shooter.y - 100, "PENALTY: 5s COOLDOWN");
-
-            // FILL GAPS to prevent rollback
-            // Iterate reversed or forward? Forward is easier for gaps.
-            // balls[0] is furthest. balls[last] is closest to start.
-            // Gap is between i and i+1.
-
-            // We need to iterate backwards to safely splice? No, splicing adds elements, shifting indices.
-            // If we iterate forward (0 -> end), inserting at i+1 shifts the rest up.
-            // We just need to skip the new balls.
-
-            for (let i = 0; i < balls.length - 1; i++) {
-                let lead = balls[i];
-                let trail = balls[i + 1];
-
-                let gap = lead.distance - trail.distance;
-                let neededSpace = config.ballSpacing - 2; // slight overlap preference or exact? Matches use Spacing.
-                // gap should be config.ballSpacing. If gap > spacing * 1.5, fill it.
-
-                if (gap > config.ballSpacing * 1.5) {
-                    // How many balls to fit?
-                    // Available space = gap.
-                    // We want to fill with enough balls such that spacing is maintained.
-                    // approx count = (gap / spacing) - 1
-
-                    let distCursor = lead.distance - config.ballSpacing;
-                    while (distCursor > trail.distance + config.ballSpacing * 0.5) {
-                        // Insert ball
-                        let typeIdx = rnd(0, activeTypeCount - 1);
-                        let newBall = new Ball(distCursor, typeIdx);
-                        // Insert at i+1
-                        balls.splice(i + 1, 0, newBall);
-                        i++; // Skip this new ball in the outer loop (it becomes lead for next pair)
-                        distCursor -= config.ballSpacing;
-                    }
-                }
-            }
-        }
-
-        function updateUI() {
-            document.getElementById('score-display').innerText = `Score: ${score}`;
-        }
-
-        function update() {
-            if (gameState !== 'playing') return;
 
             updateUI();
-            checkLevelUp();
-            updateItems();
+        }
 
-            let globalVelocity = config.ballSpeed;
-            let statusText = "";
-            let rageActive = (rageTimer > 0);
+        function winGame() {
+            endGame(true);
+        }
 
+        function loseGame() {
+            endGame(false);
+        }
 
-            if (penaltyTimer > 0) {
-                penaltyTimer--;
-                statusText = `🚫 PENALTY (${Math.ceil(penaltyTimer / 60)}s)`;
-            } else if (freezeTimer > 0) {
-                freezeTimer--;
-                globalVelocity = 0;
-                statusText = "❄️ FROZEN";
-            } else if (reverseTimer > 0) {
-                reverseTimer--;
-                globalVelocity = -config.ballSpeed * 2;
-                statusText = "⏪ REWIND";
-            }
+        function endGame(isWin) {
+            isPlaying = false;
+            const screen = document.getElementById('game-over-screen');
+            const title = document.getElementById('go-title');
+            const scEl = document.getElementById('go-score');
+            const unlock = document.getElementById('unlock-code-box');
 
-            const pbox = document.getElementById('powerup-box');
-            const ptext = document.getElementById('powerup-display');
-            if (statusText) {
-                pbox.style.display = 'flex';
-                ptext.innerText = statusText;
+            screen.style.display = 'flex';
+            scEl.innerText = `Score: ${score}`;
+
+            if (isWin) {
+                title.innerText = "GEFELICITEERD!";
+                title.style.background = "linear-gradient(to right, #4cc9f0, #4361ee)";
+                unlock.style.display = 'block';
+
+                sendLog('win');
             } else {
-                pbox.style.display = 'none';
-            }
+                title.innerText = "GAME OVER";
+                title.style.background = "linear-gradient(to right, #ff3366, #ff0000)";
+                title.style.webkitTextFillColor = "transparent";
+                title.style.backgroundClip = "text";
 
-            let spawningPaused = (freezeTimer > 0 && !rageActive) || reverseTimer > 0 || laserState.active;
-
-            if (!spawningPaused) {
-                spawnTimer++;
-                if (spawnTimer > config.spawnInterval) {
-                    let canSpawn = true;
-                    if (balls.length > 0) {
-                        let lastBall = balls[balls.length - 1];
-                        if (lastBall.distance < config.ballSpacing) {
-                            canSpawn = false;
-                        }
-                    }
-
-                    if (canSpawn) {
-                        balls.push(new Ball(0));
-                        spawnTimer = 0;
-                    }
-                }
-            }
-
-            if (balls.length > 0) {
-                let i = 0;
-                while (i < balls.length) {
-                    let segmentStart = i;
-                    let segmentEnd = i;
-
-                    while (segmentEnd < balls.length - 1) {
-                        let lead = balls[segmentEnd];
-                        let trail = balls[segmentEnd + 1];
-                        if (lead.distance - trail.distance <= config.ballSpacing + 5) {
-                            segmentEnd++;
-                        } else {
-                            break;
-                        }
-                    }
-
-                    let velocity = globalVelocity;
-
-                    if (!spawningPaused) {
-                        if (segmentEnd < balls.length - 1) {
-                            let myTail = balls[segmentEnd];
-                            let nextHead = balls[segmentEnd + 1];
-                            let gap = myTail.distance - nextHead.distance;
-                            if (gap > config.ballSpacing + 4) {
-                                velocity = -config.backSpeed;
-                            }
-                        }
-                    }
-
-                    for (let k = segmentStart; k <= segmentEnd; k++) {
-                        balls[k].distance += velocity;
-                    }
-
-                    i = segmentEnd + 1;
-                }
-
-                for (let k = 0; k < balls.length - 1; k++) {
-                    let lead = balls[k];
-                    let trail = balls[k + 1];
-                    if (lead.distance - trail.distance < config.ballSpacing) {
-                        trail.distance = lead.distance - config.ballSpacing;
-                    }
-                }
-            }
-
-            for (let b of balls) {
-                if (b.distance >= _totalPathLength) {
-                    gameOver();
-                }
-            }
-
-            const dx = mouseX - shooter.x;
-            const dy = mouseY - shooter.y;
-            shooter.angle = Math.atan2(dy, dx);
-            if (shooter.cooldown > 0) shooter.cooldown--;
-
-            updateProjectiles();
-
-            for (let i = particles.length - 1; i >= 0; i--) {
-                particles[i].update();
-                if (particles[i].life <= 0) particles.splice(i, 1);
+                unlock.style.display = 'none';
+                sendLog('loss');
             }
         }
 
-        function updateProjectiles() {
+        function sendLog(status) {
+            // ?action=submit&code=[PSEUDONYM]&quizId=Game2_Zuma&score=[SCORE]&total=500
+            if (!playerPseudonym) return;
+            const url = `${CONFIG.LogURL}?action=submit&code=${encodeURIComponent(playerPseudonym)}&quizId=Game2_Zuma&score=${score}&total=${CONFIG.WinScore}&status=${status}`;
+            fetch(url, { mode: 'no-cors' }).catch(e => console.log(e));
+        }
+
+        /**
+         * GAME LOOP
+         */
+        function loop(timestamp) {
+            let dt = (timestamp - lastTime) / 16.67; // Normalize to 60fps
+            lastTime = timestamp;
+            if (dt > 4) dt = 4; // Cap long frames
+
+            if (isPlaying) {
+                update(dt);
+            }
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        function update(dt) {
+            // Spawning
+            spawnTimer += dt;
+            if (spawnTimer > CONFIG.SpawnRate) {
+                // Check spacing
+                let canSpawn = true;
+                if (balls.length > 0) {
+                    let last = balls[balls.length - 1];
+                    if (last.dist < CONFIG.BallSpacing) canSpawn = false;
+                }
+                if (canSpawn) {
+                    spawnBall();
+                    spawnTimer = 0;
+                }
+            }
+
+            // Move Balls
+            // Simplified Logic: All move forward. If gap, close it? 
+            // For Zuma: Pushing from back.
+            // If we just move everyone +speed*dt, gaps stay constant unless we handle collision insertion
+            let moveSpeed = CONFIG.BaseSpeed * dt;
+
+            // 1. Apply base movement
+            for (let b of balls) {
+                b.dist += moveSpeed;
+            }
+
+            // 2. Resolve Collisions/Spacing (Pushing)
+            // Iterate form back (newest) to front
+            for (let i = balls.length - 2; i >= 0; i--) {
+                let behind = balls[i + 1];
+                let front = balls[i];
+
+                // If behind catches up to front (dist collision), they are grouped.
+                // Actually, in Zuma, balls stick together.
+                // We enforce min spacing.
+                if (front.dist - behind.dist < CONFIG.BallSpacing) {
+                    behind.dist = front.dist - CONFIG.BallSpacing;
+                }
+            }
+
+            // 3. Lose condition
+            for (let b of balls) {
+                if (b.dist >= pathLength) {
+                    loseGame();
+                    return;
+                }
+            }
+
+            // Update Projectiles
             for (let i = projectiles.length - 1; i >= 0; i--) {
                 let p = projectiles[i];
-                p.update();
+                p.x += Math.cos(p.angle) * CONFIG.ShotSpeed * dt;
+                p.y += Math.sin(p.angle) * CONFIG.ShotSpeed * dt;
 
-                if (!p.active) {
+                // Bounds
+                if (p.x < 0 || p.x > width || p.y < 0 || p.y > height) {
                     projectiles.splice(i, 1);
                     continue;
                 }
 
-                let hit = false;
-                for (let j = 0; j < balls.length; j++) {
-                    let b = balls[j];
-                    let bPos = getPositionAtDistance(b.distance);
-                    if (!bPos) continue;
-
-                    let dx = bPos.x - p.x;
-                    let dy = bPos.y - p.y;
-                    let dist = Math.sqrt(dx * dx + dy * dy);
-
-                    if (dist < config.ballRadius * 2) {
-                        hit = true;
-                        handleCollision(p, j);
-                        projectiles.splice(i, 1);
-                        break;
-                    }
+                // Collision with Balls
+                let hit = checkCollision(p);
+                if (hit) {
+                    projectiles.splice(i, 1);
                 }
             }
+
+            // Update Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let pt = particles[i];
+                pt.life -= 0.05 * dt;
+                pt.x += pt.vx * dt;
+                pt.y += pt.vy * dt;
+                if (pt.life <= 0) particles.splice(i, 1);
+            }
+
+            if (shooter.cooldown > 0) shooter.cooldown -= dt;
         }
 
-        function handleCollision(projectile, ballIndex) {
-            let target = balls[ballIndex];
-            let sum = target.angles[0] + target.angles[1] + projectile.value;
+        function spawnBall() {
+            // Pick random pair
+            let pair = ANGLE_PAIRS[Math.floor(Math.random() * ANGLE_PAIRS.length)];
+            // Pick one for the ball
+            let val = Math.random() < 0.5 ? pair[0] : pair[1];
+            balls.push({
+                dist: 0,
+                value: val,
+                color: getColor(val)
+            });
+        }
+
+        function checkCollision(p) {
+            for (let i = 0; i < balls.length; i++) {
+                let b = balls[i];
+                let pos = getPointAtDist(b.dist);
+
+                let dx = p.x - pos.x;
+                let dy = p.y - pos.y;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < CONFIG.BallRadius * 1.5) {
+                    handleHit(i, p);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // CORE LOGIC: SUPPLEMENTARY ANGLES
+        function handleHit(index, p) {
+            let b = balls[index];
+            let sum = b.value + p.value;
 
             if (sum === 180) {
-                SoundManager.playMatch(); // SFX
-                resolveMatch(ballIndex, target.typeIndex);
-                mistakeCount = 0; // Reset
+                // MATCH!
+                createExplosion(getPointAtDist(b.dist), b.color);
+                playSound(400, 'triangle');
+
+                balls.splice(index, 1);
+                score += 50;
+                updateUI();
+                createFloatText(p.x, p.y, "+50");
+
+                if (score >= CONFIG.WinScore) {
+                    winGame();
+                }
             } else {
-                SoundManager.playHit(); // SFX
-                insertBall(projectile, ballIndex);
+                // FAIL - Insert
+                createFloatText(p.x, p.y, "FOUT!", '#ff3366');
+                playSound(150, 'sawtooth');
 
-                // MISTAKE PENALTY
-                mistakeCount++;
-                if (mistakeCount >= 3) {
-                    triggerPenalty();
-                    mistakeCount = 0;
-                } else {
-                    createFloatText(projectile.x, projectile.y - 30, `FOUT! (${mistakeCount}/3)`);
-                }
+                // Insert logic
+                // We want to insert 'p' into the chain
+                // If we hit the 'front' of ball i, insert at i.
+                // If we hit 'back', insert at i+1.
+                // Simplified: Always insert BEFORE index (pushing it forward)
+
+                let newBall = {
+                    dist: b.dist - CONFIG.BallSpacing,
+                    value: p.value,
+                    color: getColor(p.value)
+                };
+                balls.splice(index + 1, 0, newBall); // Insert "behind" the hit ball visually in spiral?
+                // Spiral goes OUT to IN. 0 is start (out). Max is center.
+                // So higher dist is deeper in.
+                // If we hit ball at dist 100. We want to insert at dist 90 (behind it).
+                // Arrays are ordered by dist? Not necessarily, but my update logic pushes from back.
+                // Actually, balls[0] is USUALLY furthest if we push new ones to end.
+                // Wait, I push new balls to balls array. So balls[last] is dist ~0.
+                // balls[0] is dist ~max.
+                // So if I hit ball i, ball i+1 is BEHIND it (closer to start).
+
+                // Let's verify loop:
+                // for i = balls.length - 2 ... 
+                // behind = balls[i+1], front = balls[i].
+                // Front has higher distance.
+
+                // So if I hit ball i. I want to insert between i and i+1.
+                // newBall dist = b.dist - spacing.
+                // splice at i+1.
             }
         }
 
-        function resolveMatch(index, typeIdx) {
-            let start = index;
-            while (start > 0 && balls[start - 1].typeIndex === typeIdx) {
-                start--;
+        function reloadShooter() {
+            // Queue Logic
+            if (!shooter.nextVal) {
+                let pair = ANGLE_PAIRS[Math.floor(Math.random() * ANGLE_PAIRS.length)];
+                let val = Math.random() < 0.5 ? pair[0] : pair[1];
+                shooter.nextVal = val;
             }
-            let end = index;
-            while (end < balls.length - 1 && balls[end + 1].typeIndex === typeIdx) {
-                end++;
-            }
+            shooter.currentVal = shooter.nextVal;
 
-            let count = end - start + 1;
-
-            if (fireState.unlocked && fireState.charge < config.fireChargeReq) {
-                fireState.charge += count;
-                if (fireState.charge > config.fireChargeReq) fireState.charge = config.fireChargeReq;
-            }
-
-            let powerupsToActivate = [];
-            for (let k = start; k <= end; k++) {
-                if (balls[k].powerup) powerupsToActivate.push(balls[k].powerup);
-            }
-            for (let k = start; k <= end; k++) {
-                SoundManager.playExplosion();
-                createExplosion(getPositionAtDistance(balls[k].distance), typeColorMap[balls[k].typeIndex]);
-            }
-
-            balls.splice(start, count);
-
-            for (let p of powerupsToActivate) {
-                activatePowerup(p);
-            }
-
-            score += 100 * count;
+            // Generate new next
+            let pair = ANGLE_PAIRS[Math.floor(Math.random() * ANGLE_PAIRS.length)];
+            shooter.nextVal = Math.random() < 0.5 ? pair[0] : pair[1];
         }
 
-        function activatePowerup(p) {
-            if (p.type === 'flame') {
-                for (let b of balls) {
-                    createExplosion(getPositionAtDistance(b.distance), typeColorMap[b.typeIndex]);
-                }
-                balls = [];
-                score += 1000;
-            } else if (p.type === 'freeze') {
-                freezeTimer = p.duration;
-            } else if (p.type === 'reverse') {
-                reverseTimer = p.duration;
-            }
+        function handleClick() {
+            if (!isPlaying) return;
+            if (shooter.cooldown > 0) return;
+
+            shoot();
         }
 
-        function insertBall(projectile, hitIndex) {
-            let target = balls[hitIndex];
+        function shoot() {
+            let dx = mouse.x - shooter.x;
+            let dy = mouse.y - shooter.y;
+            let angle = Math.atan2(dy, dx);
 
-            // REMOVED RAGE ON MISS (User Request)
-            // Just a normal insert now
+            projectiles.push({
+                x: shooter.x,
+                y: shooter.y,
+                angle: angle,
+                value: shooter.currentVal,
+                color: getColor(shooter.currentVal)
+            });
 
-            let newBall = new Ball(target.distance, projectile.typeIndex);
+            playSound(600, 'sine');
+            shooter.cooldown = 20; // frames
+            reloadShooter();
+        }
 
-            for (let k = 0; k <= hitIndex; k++) {
-                balls[k].distance += config.ballSpacing;
-            }
+        /**
+         * UTILS
+         */
+        function getColor(val) {
+            // Hash val to color index
+            return COLORS[val % COLORS.length];
+        }
 
-            newBall.distance = balls[hitIndex].distance - config.ballSpacing;
-            balls.splice(hitIndex + 1, 0, newBall);
+        function getPointAtDist(d) {
+            if (d <= 0) return path[0];
+            if (d >= pathLength) return path[path.length - 1];
 
-            score -= 10;
+            let pct = d / pathLength;
+            let idx = Math.floor(pct * (path.length - 1));
+            return path[idx];
         }
 
         function createExplosion(pos, color) {
-            if (!pos) return;
-            // More particles for splatter
-            for (let i = 0; i < 40; i++) {
-                particles.push(new Particle(pos.x, pos.y, color));
+            for (let i = 0; i < 30; i++) {
+                let angle = Math.random() * Math.PI * 2;
+                let speed = Math.random() * 5 + 2;
+                particles.push({
+                    x: pos.x, y: pos.y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    color: color,
+                    life: 1.0
+                });
             }
         }
 
-        function drawPath() {
-            if (pathPoints.length < 2) return;
-            ctx.beginPath();
-            ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
-            for (let i = 1; i < pathPoints.length; i++) {
-                ctx.lineTo(pathPoints[i].x, pathPoints[i].y);
-            }
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = 'rgba(255,255,255,0.2)';
-
-            // Visual feedback for PENALTY (Pulse Red)
-            if (penaltyTimer > 0) {
-                ctx.strokeStyle = `rgba(255,0,0, ${0.5 + Math.sin(Date.now() / 50) * 0.5})`;
-                ctx.lineWidth = config.ballRadius * 2 + 15;
-            } else {
-                ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-                ctx.lineWidth = config.ballRadius * 2 + 10;
-            }
-
-            ctx.lineCap = 'round';
-            ctx.stroke();
-
-            ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-            ctx.lineWidth = config.ballRadius * 2;
-            ctx.stroke();
-            ctx.shadowBlur = 0;
+        function createFloatText(x, y, text, color = '#fff') {
+            const el = document.createElement('div');
+            el.className = 'float-text';
+            el.innerText = text;
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+            el.style.color = color;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 800);
         }
 
-        function drawQueue() {
-            const centerX = canvas.width / 2;
-            const bottomY = canvas.height - 50;
+        function updateUI() {
+            document.getElementById('score-display').innerText = `Score: ${score}`;
+            let pct = (score / CONFIG.WinScore) * 100;
+            document.getElementById('progress-fill').style.width = pct + "%";
+        }
 
-            ctx.fillStyle = 'rgba(255,255,255,0.5)';
-            ctx.font = 'bold 16px "Segoe UI"';
-            ctx.textAlign = 'center';
-            ctx.fillText("NEXT", centerX, bottomY - 50);
+        /**
+         * DRAW
+         */
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
 
-            let totalWidth = (shooter.queue.length - 1) * 60;
-            let startX = centerX - totalWidth / 2;
-
-            for (let i = 0; i < shooter.queue.length; i++) {
-                let typeIdx = shooter.queue[i];
-                let angleVal = ANGLE_DEFS[typeIdx].c;
-
-                let x = startX + i * 60;
-                let y = bottomY;
-
+            // Draw Path (Track)
+            if (path.length > 1) {
                 ctx.beginPath();
-                ctx.arc(x, y, 25, 0, Math.PI * 2);
+                ctx.moveTo(path[0].x, path[0].y);
+                for (let i = 1; i < path.length; i += 5) ctx.lineTo(path[i].x, path[i].y);
 
-                let grad = ctx.createRadialGradient(x - 8, y - 8, 4, x, y, 25);
-                grad.addColorStop(0, 'rgba(255,255,255,0.9)');
-                grad.addColorStop(0.5, 'rgba(200,200,255,0.3)');
-                grad.addColorStop(1, 'rgba(255,255,255,0.1)');
-                ctx.fillStyle = grad;
-                ctx.fill();
-
-                ctx.strokeStyle = 'rgba(200, 200, 255, 0.4)';
-                ctx.lineWidth = 2;
+                // Glow
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = 'rgba(76, 201, 240, 0.3)';
+                ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+                ctx.lineWidth = CONFIG.BallRadius * 2 + 10;
+                ctx.lineCap = 'round';
                 ctx.stroke();
 
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 18px "Segoe UI", Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.shadowColor = 'rgba(0,0,0,0.8)';
-                ctx.shadowBlur = 4;
-                ctx.fillText(angleVal + '°', x, y);
                 ctx.shadowBlur = 0;
+                ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+                ctx.lineWidth = CONFIG.BallRadius * 2;
+                ctx.stroke();
+
+                // Inner line
+                ctx.strokeStyle = 'rgba(67, 97, 238, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
             }
+
+            // Draw Balls
+            for (let b of balls) {
+                let pos = getPointAtDist(b.dist);
+                drawBall(pos.x, pos.y, b.value, b.color);
+            }
+
+            // Draw Projectiles
+            for (let p of projectiles) {
+                drawBall(p.x, p.y, p.value, p.color);
+            }
+
+            // Draw Particles
+            for (let pt of particles) {
+                ctx.globalAlpha = pt.life;
+                ctx.fillStyle = pt.color;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+
+            // Draw Shooter
+            drawShooter();
         }
 
+        function drawBall(x, y, val, color) {
+            ctx.beginPath();
+            ctx.arc(x, y, CONFIG.BallRadius, 0, Math.PI * 2);
+
+            let grad = ctx.createRadialGradient(x - 10, y - 10, 5, x, y, CONFIG.BallRadius);
+            grad.addColorStop(0, '#fff');
+            grad.addColorStop(0.3, color);
+            grad.addColorStop(1, '#000');
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 20px "Segoe UI"';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(val + "°", x, y);
+        }
 
         function drawShooter() {
+            let dx = mouse.x - shooter.x;
+            let dy = mouse.y - shooter.y;
+            shooter.angle = Math.atan2(dy, dx);
+
             ctx.save();
             ctx.translate(shooter.x, shooter.y);
             ctx.rotate(shooter.angle);
 
-            ctx.save();
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.lineWidth = 4;
-            ctx.setLineDash([10, 10]);
+            // Cannon
+            ctx.fillStyle = '#444';
             ctx.beginPath();
-            ctx.moveTo(35, 0);
-            ctx.lineTo(300, 0);
-            ctx.stroke();
-            ctx.restore();
-
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = '#4cc9f0';
-
-            if (laserState.active) {
-                ctx.fillStyle = '#f0f';
-                ctx.shadowColor = '#f0f';
-            } else {
-                ctx.fillStyle = '#4361ee';
-                ctx.shadowColor = '#4cc9f0';
-            }
-
-            ctx.beginPath();
-            ctx.moveTo(25, 0);
-            ctx.lineTo(-20, 20);
-            ctx.lineTo(-20, -20);
+            ctx.moveTo(0, -15);
+            ctx.lineTo(40, 0);
+            ctx.lineTo(0, 15);
             ctx.fill();
 
-            ctx.fillStyle = '#3a0ca3';
-            ctx.beginPath();
-            ctx.arc(0, 0, 15, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.shadowBlur = 0;
             ctx.restore();
 
-            if (shooter.nextBall && !laserState.active) {
-                let bx = shooter.x;
-                let by = shooter.y;
+            // Current Ball
+            if (isPlaying) {
+                drawBall(shooter.x, shooter.y, shooter.currentVal, getColor(shooter.currentVal));
 
-                ctx.beginPath();
-                ctx.arc(bx, by, config.ballRadius, 0, Math.PI * 2);
-
-                let grad = ctx.createRadialGradient(bx - 10, by - 10, 5, bx, by, config.ballRadius);
-                grad.addColorStop(0, 'rgba(255,255,255,0.9)');
-                grad.addColorStop(0.5, 'rgba(200,200,255,0.4)');
-                grad.addColorStop(1, 'rgba(255,255,255,0.1)');
-                ctx.fillStyle = grad;
-                ctx.fill();
-
-                ctx.strokeStyle = 'rgba(200, 200, 255, 0.8)';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 22px "Segoe UI", Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.shadowBlur = 4;
-                ctx.shadowColor = 'black';
-                ctx.fillText(shooter.nextBall.angle + '°', bx, by);
-                ctx.shadowBlur = 0;
+                // Next Ball Indicator (Small)
+                let nbVal = shooter.nextVal;
+                if (nbVal) {
+                    let nbColor = getColor(nbVal);
+                    ctx.beginPath();
+                    ctx.arc(shooter.x - 50, shooter.y + 50, 15, 0, Math.PI * 2);
+                    ctx.fillStyle = nbColor;
+                    ctx.fill();
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '12px Arial';
+                    ctx.fillText(nbVal, shooter.x - 50, shooter.y + 50);
+                    ctx.fillText("NEXT", shooter.x - 50, shooter.y + 75);
+                }
             }
         }
 
-        function gameOver() {
-            gameState = 'gameover';
-            document.getElementById('final-score').innerText = `Final Score: ${score}`;
-            document.getElementById('game-over-screen').style.display = 'flex';
+        /**
+         * AUDIO (Simple Synth)
+         */
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        const actx = new AudioCtx();
 
-            // Show Unlock Code
-            const unlockDiv = document.getElementById('unlock-code-display');
-            unlockDiv.style.display = 'block';
-            unlockDiv.innerText = "CODE VOLGENDE GAME: PIZZA314";
-
-            // Log Data
-            sendLog(score);
-        }
-
-        function loop() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawPath();
-
-            if (pathPoints.length > 0) {
-                let end = pathPoints[pathPoints.length - 1];
-                ctx.beginPath();
-                ctx.arc(end.x, end.y, config.ballRadius * 1.8, 0, Math.PI * 2);
-                ctx.fillStyle = '#111';
-                ctx.fill();
-                ctx.strokeStyle = '#f72585';
-                ctx.lineWidth = 4;
-                ctx.setLineDash([10, 10]);
-                ctx.beginPath();
-                ctx.arc(end.x, end.y, config.ballRadius * 1.8, 0, Math.PI * 2);
-                ctx.stroke();
-                ctx.setLineDash([]);
-            }
-
-            update();
-
-            for (let i = balls.length - 1; i >= 0; i--) {
-                balls[i].draw();
-            }
-
-            for (let p of projectiles) p.draw();
-            for (let pt of particles) pt.draw();
-
-            drawShooter();
-            drawQueue();
-
-            requestAnimationFrame(loop);
+        function playSound(freq, type) {
+            if (actx.state === 'suspended') actx.resume();
+            const osc = actx.createOscillator();
+            const gain = actx.createGain();
+            osc.type = type || 'sine';
+            osc.frequency.setValueAtTime(freq, actx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(freq / 2, actx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.1, actx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, actx.currentTime + 0.1);
+            osc.connect(gain);
+            gain.connect(actx.destination);
+            osc.start();
+            osc.stop(actx.currentTime + 0.1);
         }
 
     </script>
