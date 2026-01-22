@@ -1,891 +1,607 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="nl">
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zuma 180°: Supplementary Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Space Math: Driehoeken Jacht</title>
     <style>
         body {
             margin: 0;
-            overflow: hidden;
-            background: radial-gradient(circle at center, #1a1a2e 0%, #0f0f1a 100%);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #222;
             color: white;
-            user-select: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
             touch-action: none;
-            /* Prevent mobile scrolling */
         }
 
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 600px;
+            height: 100vh;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        /* CANVAS */
         canvas {
+            background: #111;
+            border: 4px solid #4ecca3;
+            box-shadow: 0 0 20px rgba(78, 204, 163, 0.2);
+            border-radius: 4px;
+            width: 100%;
+            flex-grow: 1;
+            max-height: 55vh;
+            /* Slightly smaller to fit 3 buttons nicely */
             display: block;
         }
 
-        /* UI LAYERS */
-        #ui-layer {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            pointer-events: none;
-            display: flex;
-            gap: 20px;
-            z-index: 10;
-        }
-
-        .ui-box {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            padding: 15px 25px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        /* CONTROLS */
+        #controls-wrapper {
+            width: 100%;
+            margin-top: 15px;
             display: flex;
             flex-direction: column;
-            align-items: flex-start;
+            gap: 10px;
         }
 
-        #score-display {
-            font-size: 28px;
-            font-weight: 800;
-            color: #4cc9f0;
-            text-shadow: 0 0 15px rgba(76, 201, 240, 0.6);
-        }
-
-        #target-display {
-            font-size: 16px;
-            color: #bbb;
-            margin-top: 5px;
-            font-weight: 600;
-        }
-
-        /* OVERLAYS */
-        .overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
+        /* Ammo Buttons */
+        #ammo-controls {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
             width: 100%;
-            height: 100%;
+        }
+
+        .ammo-btn {
+            flex: 1;
+            height: 70px;
+            background: #1a1a2e;
+            border: 2px solid #555;
+            border-radius: 8px;
+            color: #ccc;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            /* Stack Icon and Text */
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .ammo-btn span {
+            font-size: 10px;
+            opacity: 0.7;
+        }
+
+        .ammo-btn.active {
+            border-color: white;
+            color: white;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* MOVES */
+        #touch-moves {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .move-btn {
+            width: 80px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
             display: flex;
             justify-content: center;
             align-items: center;
-            flex-direction: column;
-            background: rgba(10, 10, 20, 0.92);
-            backdrop-filter: blur(8px);
-            z-index: 100;
-        }
-
-        h1 {
-            font-size: 56px;
-            margin-bottom: 20px;
-            background: linear-gradient(to right, #4cc9f0, #4361ee);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            text-shadow: 0 0 30px rgba(67, 97, 238, 0.4);
-            text-align: center;
-        }
-
-        /* LOGIN FORM */
-        .login-box {
-            background: #252540;
-            padding: 40px;
-            border-radius: 20px;
-            border: 2px solid #4361ee;
-            text-align: center;
-            box-shadow: 0 0 60px rgba(67, 97, 238, 0.4);
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .login-input {
-            padding: 15px;
-            border-radius: 10px;
-            border: 1px solid #555;
-            background: #111;
-            color: white;
-            font-size: 20px;
-            width: 280px;
-            text-align: center;
-            transition: border 0.3s;
-        }
-
-        .login-input:focus {
-            outline: none;
-            border-color: #4cc9f0;
-            box-shadow: 0 0 15px rgba(76, 201, 240, 0.3);
-        }
-
-        .btn {
-            padding: 15px 40px;
-            font-size: 22px;
-            background: linear-gradient(135deg, #4cc9f0, #4361ee);
-            border: none;
-            border-radius: 50px;
-            color: white;
+            font-size: 24px;
             cursor: pointer;
-            transition: all 0.2s;
-            font-weight: bold;
-            box-shadow: 0 0 20px rgba(76, 201, 240, 0.4);
-            margin-top: 10px;
-            text-transform: uppercase;
         }
 
-        .btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 30px rgba(76, 201, 240, 0.6);
+        .fire-btn {
+            width: 100px;
+            height: 60px;
+            background: rgba(241, 196, 15, 0.2);
+            border: 2px solid #f1c40f;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            cursor: pointer;
         }
 
-        .btn:active {
+        .move-btn:active,
+        .fire-btn:active {
+            opacity: 0.7;
             transform: scale(0.95);
         }
 
-        .error-msg {
-            color: #ff3366;
-            font-weight: bold;
-            min-height: 24px;
-            font-size: 16px;
-        }
-
-        /* GAME OVER / WIN */
-        #unlock-code-box {
-            margin-top: 30px;
-            padding: 20px;
-            border: 3px dashed #4cc9f0;
-            background: rgba(76, 201, 240, 0.1);
-            border-radius: 15px;
-            display: none;
-            text-align: center;
-        }
-
-        .code-text {
-            display: block;
-            font-size: 42px;
-            font-weight: 900;
-            color: #fff;
-            letter-spacing: 5px;
-            margin-top: 10px;
-            text-shadow: 0 0 20px #4cc9f0;
-        }
-
-        /* PROGRESS BAR */
-        #progress-container {
+        /* Overlays */
+        .overlay {
             position: absolute;
-            bottom: 30px;
+            top: 50%;
             left: 50%;
-            transform: translateX(-50%);
-            width: 400px;
-            height: 10px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 5px;
-            overflow: hidden;
-            z-index: 10;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 15, 25, 0.95);
+            padding: 30px;
+            border: 2px solid #4ecca3;
+            border-radius: 12px;
+            text-align: center;
+            width: 80%;
+            max-width: 400px;
+            z-index: 100;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
         }
 
-        #progress-fill {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(to right, #4cc9f0, #4361ee);
-            transition: width 0.3s;
+        h1 {
+            margin-top: 0;
+            color: #4ecca3;
+            font-size: 24px;
         }
 
-        /* Floating Text */
-        .float-text {
-            position: absolute;
-            font-weight: bold;
-            font-size: 28px;
-            pointer-events: none;
-            animation: floatUp 0.8s forwards;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
-            z-index: 5;
+        p {
+            color: #ccc;
+            margin: 15px 0;
         }
 
-        @keyframes floatUp {
-            0% {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
+        input {
+            width: 90%;
+            padding: 10px;
+            background: #222;
+            border: 1px solid #555;
+            color: white;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
 
-            100% {
-                opacity: 0;
-                transform: translateY(-60px) scale(1.4);
-            }
+        button.ui-btn {
+            background: #1a1a2e;
+            color: #4ecca3;
+            border: 2px solid #4ecca3;
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 6px;
+            width: 100%;
+            margin-top: 10px;
+            transition: all 0.2s;
+        }
+
+        .unlock-code {
+            font-family: monospace;
+            font-size: 32px;
+            color: #f1c40f;
+            border: 2px dashed #f1c40f;
+            padding: 10px;
+            background: #222;
+            margin: 20px 0;
+            letter-spacing: 2px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .mini-icon {
+            width: 20px;
+            height: 20px;
+            margin-bottom: 4px;
+            display: inline-block;
         }
     </style>
 </head>
 
 <body>
 
-    <!-- UI -->
-    <div id="ui-layer">
-        <div class="ui-box">
-            <div id="score-display">Score: 0</div>
-            <div id="target-display">Target: 500</div>
-        </div>
-    </div>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="600" height="600"></canvas>
 
-    <div id="progress-container">
-        <div id="progress-fill"></div>
-    </div>
+        <div id="controls-wrapper">
 
-    <!-- 1. LOGIN SCREEN -->
-    <div id="login-screen" class="overlay">
-        <div class="login-box">
-            <h1>ZUMA 180°</h1>
-            <p style="color:#ccc;">Supplementary Angles Edition</p>
-            <input type="text" id="inp-name" class="login-input" placeholder="Jouw Naam" autocomplete="off">
-            <input type="text" id="inp-pass" class="login-input" placeholder="Wachtwoord" autocomplete="off">
-            <div id="login-msg" class="error-msg"></div>
-            <button class="btn" onclick="tryLogin()">Login</button>
-        </div>
-    </div>
+            <div id="ammo-controls">
+                <!-- 0: Blue (Recht) -->
+                <div class="ammo-btn active" id="btn-0" style="border-color:#3498db" onclick="selectAmmo(0)">
+                    <svg class="mini-icon" viewBox="0 0 20 20">
+                        <path d="M5,5 L5,15 L15,15" fill="none" stroke="#3498db" stroke-width="2" />
+                    </svg>
+                    RECHT
+                </div>
+                <!-- 1: Red (Stomp) -->
+                <div class="ammo-btn" id="btn-1" style="border-color:#e74c3c" onclick="selectAmmo(1)">
+                    <svg class="mini-icon" viewBox="0 0 20 20">
+                        <path d="M2,5 L10,15 L18,5" fill="none" stroke="#e74c3c" stroke-width="2" />
+                    </svg>
+                    STOMP
+                </div>
+                <!-- 2: Green (Scherp) -->
+                <div class="ammo-btn" id="btn-2" style="border-color:#2ecc71" onclick="selectAmmo(2)">
+                    <svg class="mini-icon" viewBox="0 0 20 20">
+                        <path d="M2,15 L10,2 L18,15 Z" fill="none" stroke="#2ecc71" stroke-width="2" />
+                    </svg>
+                    SCHERP
+                </div>
+            </div>
 
-    <!-- 2. START SCREEN -->
-    <div id="start-screen" class="overlay" style="display: none;">
-        <h1>READY?</h1>
-        <p style="color: #aaa; font-size: 20px; max-width: 600px; text-align: center; line-height: 1.6;">
-            De ballen rollen! <br>
-            Elke bal heeft een hoek (bijv. <b>110°</b>).<br>
-            Schiet de <b>supplementaire hoek</b> (wat samen 180° maakt).<br>
-            <br>
-            Voorbeeld: <b>110° + 70° = 180°</b>
-        </p>
-        <button class="btn" onclick="startGame()">Start Game</button>
-    </div>
-
-    <!-- 3. GAME OVER SCREEN -->
-    <div id="game-over-screen" class="overlay" style="display: none;">
-        <h1 id="go-title">WINNER!</h1>
-        <div style="font-size: 24px; color: #ccc;" id="go-score">Final Score: 500</div>
-
-        <div id="unlock-code-box">
-            <span style="font-size:18px; color:#4cc9f0; text-transform:uppercase;">Code Volgende Level:</span>
-            <span class="code-text">PIZZA314</span>
+            <div id="touch-moves">
+                <div class="move-btn" id="btn-left">⬅️</div>
+                <div class="fire-btn" id="btn-shoot">FIRE</div>
+                <div class="move-btn" id="btn-right">➡️</div>
+            </div>
         </div>
 
-        <button class="btn" onclick="resetGame()" style="margin-top: 30px;">Play Again</button>
-    </div>
+        <!-- SCREENS -->
+        <div id="screen-login" class="overlay">
+            <h1>Missie: Driehoeken Jacht</h1>
+            <p>Identificatie Vereist</p>
+            <input type="password" id="inp-code" placeholder="Code (DELTA180)">
+            <input type="text" id="inp-name" placeholder="Jouw Codenaam">
+            <button class="ui-btn" onclick="submitLogin()">Start Missie</button>
+        </div>
 
-    <canvas id="canvas"></canvas>
+        <div id="screen-gameover" class="overlay hidden" style="border-color: #ff4757;">
+            <h1 style="color: #ff4757;">MISSIE MISLUKT</h1>
+            <p>Score: <span id="score-loss">0</span></p>
+            <button class="ui-btn" onclick="location.reload()">Opnieuw Proberen</button>
+        </div>
+
+        <div id="screen-win" class="overlay hidden" style="border-color: #f1c40f;">
+            <h1 style="color: #f1c40f;">DOEL BEREIKT!</h1>
+            <p>Je hebt 200 punten behaald.</p>
+            <p>UNLOCK CODE:</p>
+            <div class="unlock-code">PYTHAGORAS</div>
+            <p style="font-size: 12px; color: #888;">Noteer deze code!</p>
+        </div>
+    </div>
 
     <script>
-        /**
-         * CONFIGURATION
-         */
-        const CONFIG = {
-            WinScore: 500,
-            Password: "ZUMA22",
-            LogURL: "https://script.google.com/macros/s/AKfycbytukuFv4uakCSohLYXZa-44gzMv_0jWAAQoBfLXHaMTN_TsRYK0lcVaeKhkXtbdek7XA/exec",
+        /* ---------------- CONFIG ---------------- */
+        const LOG_URL = "https://script.google.com/macros/s/AKfycbytukuFv4uakCSohLYXZa-44gzMv_0jWAAQoBfLXHaMTN_TsRYK0lcVaeKhkXtbdek7XA/exec";
+        const TARGET_SCORE = 200;
+        const BASE_SPAWN_INTERVAL = 2500;
 
-            // Gameplay Tuning
-            BallRadius: 32,
-            BallSpacing: 60,   // Distance between centers
-            BaseSpeed: 0.65,   // +20% from orig 0.5 roughly
-            ShotSpeed: 25,     // Snappy
-            SpawnRate: 45,     // Frames approx (controlled by DT now)
-        };
-
-        // SUPPLEMENTARY ANGLES POOL (Pairs summing to 180)
-        const ANGLE_PAIRS = [
-            [10, 170], [20, 160], [30, 150], [40, 140],
-            [50, 130], [60, 120], [70, 110], [80, 100],
-            [90, 90], [45, 135], [135, 45], [100, 80]
+        // Colors
+        const AMMO = [
+            { id: 0, label: "RECHT", color: "#3498db" },  // Blue
+            { id: 1, label: "STOMP", color: "#e74c3c" },  // Red
+            { id: 2, label: "SCHERP", color: "#2ecc71" }  // Green
         ];
 
-        // Colors for distinct values
-        const COLORS = [
-            '#FF595E', '#FFCA3A', '#8AC926', '#1982C4', '#6A4C93', '#F15BB5', '#00BBF9'
-        ];
-
-        /**
-         * GAME STATE
-         */
-        let canvas, ctx;
-        let width, height;
-
-        // Auth
-        let playerPseudonym = "";
-
-        // Game
-        let isPlaying = false;
+        /* ---------------- STATE ---------------- */
+        let playerName = "";
         let score = 0;
+        let lives = 3;
+        let gameRunning = false;
         let lastTime = 0;
         let spawnTimer = 0;
+        let selectedAmmo = 0; // 0, 1, 2
 
-        // Entities
-        let path = [];
-        let pathLength = 0;
-        let balls = [];
-        let projectiles = [];
-        let particles = [];
+        let player = { x: 275, y: 530, w: 50, h: 50 };
+        let bullets = [];
+        let enemies = [];
+        let stars = [];
 
-        // Shooter
-        let shooter = {
-            x: 0, y: 0, angle: 0,
-            currentVal: 0,
-            nextVal: 0,
-            cooldown: 0
-        };
+        /* ---------------- INIT ---------------- */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
 
-        // Input
-        let mouse = { x: 0, y: 0 };
-
-        /**
-         * INITIALIZATION
-         */
-        window.onload = () => {
-            canvas = document.getElementById('canvas');
-            ctx = canvas.getContext('2d');
-            resize();
-            window.addEventListener('resize', resize);
-
-            // Inputs
-            window.addEventListener('mousemove', e => {
-                mouse.x = e.clientX;
-                mouse.y = e.clientY;
+        // Init Stars
+        for (let i = 0; i < 80; i++) {
+            stars.push({
+                x: Math.random() * 600,
+                y: Math.random() * 600,
+                size: Math.random() * 2,
+                speed: Math.random() * 1.5 + 0.5
             });
-            window.addEventListener('mousedown', handleClick);
-
-            // Touch
-            window.addEventListener('touchmove', e => {
-                e.preventDefault();
-                if (e.touches.length > 0) {
-                    mouse.x = e.touches[0].clientX;
-                    mouse.y = e.touches[0].clientY;
-                }
-            }, { passive: false });
-            window.addEventListener('touchstart', e => {
-                e.preventDefault();
-                if (e.touches.length > 0) {
-                    mouse.x = e.touches[0].clientX;
-                    mouse.y = e.touches[0].clientY;
-                    handleClick();
-                }
-            }, { passive: false });
-
-            requestAnimationFrame(loop);
-        };
-
-        function resize() {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
-            shooter.x = width / 2;
-            shooter.y = height / 2;
-            generatePath();
         }
 
-        // Generate Spiral Path
-        function generatePath() {
-            path = [];
-            const cx = width / 2;
-            const cy = height / 2;
-            const maxR = Math.min(width, height) * 0.45;
-            const loops = 3;
-            const points = 1500;
+        /* ---------------- CONTROLS ---------------- */
+        const keys = { Left: false, Right: false };
 
-            for (let i = 0; i <= points; i++) {
-                let t = i / points;
-                // Spiral inwards
-                let angle = Math.PI + t * Math.PI * 2 * loops;
-                let r = maxR * (1 - t);
+        window.addEventListener('keydown', e => {
+            if (e.code === 'ArrowLeft') keys.Left = true;
+            if (e.code === 'ArrowRight') keys.Right = true;
+            if (e.code === 'Space' && gameRunning) fireBullet();
+            if (e.key === '1') selectAmmo(0);
+            if (e.key === '2') selectAmmo(1);
+            if (e.key === '3') selectAmmo(2);
+        });
 
-                path.push({
-                    x: cx + r * Math.cos(angle),
-                    y: cy + r * Math.sin(angle)
-                });
-            }
+        window.addEventListener('keyup', e => {
+            if (e.code === 'ArrowLeft') keys.Left = false;
+            if (e.code === 'ArrowRight') keys.Right = false;
+        });
 
-            // Calculate total length for interpolation
-            pathLength = 0;
-            for (let i = 1; i < path.length; i++) {
-                let dx = path[i].x - path[i - 1].x;
-                let dy = path[i].y - path[i - 1].y;
-                pathLength += Math.sqrt(dx * dx + dy * dy);
-            }
+        function bindTouch(id, startFn, endFn) {
+            const el = document.getElementById(id);
+            const handleStart = (e) => { e.preventDefault(); startFn(); };
+            const handleEnd = (e) => { e.preventDefault(); endFn(); };
+            el.addEventListener('mousedown', handleStart);
+            el.addEventListener('mouseup', handleEnd);
+            el.addEventListener('touchstart', handleStart);
+            el.addEventListener('touchend', handleEnd);
+            el.addEventListener('mouseleave', handleEnd);
         }
 
-        /**
-         * LOGIC & FLOW
-         */
-        function tryLogin() {
+        bindTouch('btn-left', () => keys.Left = true, () => keys.Left = false);
+        bindTouch('btn-right', () => keys.Right = true, () => keys.Right = false);
+        bindTouch('btn-shoot', () => fireBullet(), () => { });
+
+        function selectAmmo(idx) {
+            selectedAmmo = idx;
+            // UI
+            for (let i = 0; i < 3; i++) {
+                const btn = document.getElementById(`btn-${i}`);
+                if (i === idx) {
+                    btn.classList.add('active');
+                    btn.style.backgroundColor = AMMO[i].color;
+                    btn.style.color = "black";
+                } else {
+                    btn.classList.remove('active');
+                    btn.style.backgroundColor = "#1a1a2e";
+                    btn.style.color = AMMO[i].color;
+                }
+            }
+        }
+        // Initialize selection visual
+        selectAmmo(0);
+
+        /* ---------------- LOOPS ---------------- */
+        function submitLogin() {
+            const code = document.getElementById('inp-code').value.trim().toUpperCase();
             const name = document.getElementById('inp-name').value.trim();
-            const pass = document.getElementById('inp-pass').value.trim().toUpperCase();
-            const msg = document.getElementById('login-msg');
 
-            if (!name) { msg.innerText = "Naam is verplicht!"; return; }
-            if (pass !== CONFIG.Password) { msg.innerText = "Verkeerd Wachtwoord!"; return; }
+            if (code !== "DELTA180") return alert("Code onjuist!");
+            if (!name) return alert("Naam verplicht!");
 
-            playerPseudonym = name;
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('start-screen').style.display = 'flex';
+            playerName = name;
+            document.getElementById('screen-login').classList.add('hidden');
+            startGame();
         }
 
         function startGame() {
-            document.getElementById('start-screen').style.display = 'none';
-            document.getElementById('game-over-screen').style.display = 'none';
-            resetGame();
-            isPlaying = true;
-        }
-
-        function resetGame() {
             score = 0;
-            balls = [];
-            projectiles = [];
-            particles = [];
-            spawnTimer = 0;
-            shooter.queue = [];
-
-            // Load initial queue
-            reloadShooter();
-            reloadShooter();
-
-            updateUI();
+            lives = 3;
+            player.x = 275;
+            bullets = [];
+            enemies = [];
+            selectedAmmo = 0;
+            selectAmmo(0);
+            gameRunning = true;
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
         }
 
-        function winGame() {
-            endGame(true);
+        function fireBullet() {
+            bullets.push({
+                x: player.x + 25,
+                y: player.y,
+                type: selectedAmmo,
+                color: AMMO[selectedAmmo].color
+            });
+            playSound(400, 'square');
         }
 
-        function loseGame() {
-            endGame(false);
-        }
-
-        function endGame(isWin) {
-            isPlaying = false;
-            const screen = document.getElementById('game-over-screen');
-            const title = document.getElementById('go-title');
-            const scEl = document.getElementById('go-score');
-            const unlock = document.getElementById('unlock-code-box');
-
-            screen.style.display = 'flex';
-            scEl.innerText = `Score: ${score}`;
-
-            if (isWin) {
-                title.innerText = "GEFELICITEERD!";
-                title.style.background = "linear-gradient(to right, #4cc9f0, #4361ee)";
-                unlock.style.display = 'block';
-
-                sendLog('win');
-            } else {
-                title.innerText = "GAME OVER";
-                title.style.background = "linear-gradient(to right, #ff3366, #ff0000)";
-                title.style.webkitTextFillColor = "transparent";
-                title.style.backgroundClip = "text";
-
-                unlock.style.display = 'none';
-                sendLog('loss');
-            }
-        }
-
-        function sendLog(status) {
-            // ?action=submit&code=[PSEUDONYM]&quizId=Game2_Zuma&score=[SCORE]&total=500
-            if (!playerPseudonym) return;
-            const url = `${CONFIG.LogURL}?action=submit&code=${encodeURIComponent(playerPseudonym)}&quizId=Game2_Zuma&score=${score}&total=${CONFIG.WinScore}&status=${status}`;
-            fetch(url, { mode: 'no-cors' }).catch(e => console.log(e));
-        }
-
-        /**
-         * GAME LOOP
-         */
-        function loop(timestamp) {
-            let dt = (timestamp - lastTime) / 16.67; // Normalize to 60fps
+        function gameLoop(timestamp) {
+            if (!gameRunning) return;
+            const dt = timestamp - lastTime;
             lastTime = timestamp;
-            if (dt > 4) dt = 4; // Cap long frames
-
-            if (isPlaying) {
-                update(dt);
-            }
+            update(dt);
             draw();
-            requestAnimationFrame(loop);
+            requestAnimationFrame(gameLoop);
         }
 
         function update(dt) {
-            // Spawning
+            // Player
+            if (keys.Left) player.x -= 0.5 * dt;
+            if (keys.Right) player.x += 0.5 * dt;
+            if (player.x < 0) player.x = 0;
+            if (player.x > 550) player.x = 550;
+
+            // Bullets
+            for (let i = 0; i < bullets.length; i++) {
+                bullets[i].y -= 0.8 * dt;
+                if (bullets[i].y < -20) { bullets.splice(i, 1); i--; }
+            }
+
+            // Spawn
+            let currentInterval = Math.max(800, BASE_SPAWN_INTERVAL - (score * 8));
             spawnTimer += dt;
-            if (spawnTimer > CONFIG.SpawnRate) {
-                // Check spacing
-                let canSpawn = true;
-                if (balls.length > 0) {
-                    let last = balls[balls.length - 1];
-                    if (last.dist < CONFIG.BallSpacing) canSpawn = false;
-                }
-                if (canSpawn) {
-                    spawnBall();
-                    spawnTimer = 0;
-                }
+            if (spawnTimer > currentInterval) {
+                spawnEnemy();
+                spawnTimer = 0;
             }
 
-            // Move Balls
-            // Simplified Logic: All move forward. If gap, close it? 
-            // For Zuma: Pushing from back.
-            // If we just move everyone +speed*dt, gaps stay constant unless we handle collision insertion
-            let moveSpeed = CONFIG.BaseSpeed * dt;
+            // Enemies
+            for (let i = 0; i < enemies.length; i++) {
+                let e = enemies[i];
+                e.y += e.speed * (dt / 16);
+                e.rotation += e.rotSpeed * (dt / 16);
 
-            // 1. Apply base movement
-            for (let b of balls) {
-                b.dist += moveSpeed;
-            }
+                // Check Hits
+                const hitDist = 45;
+                let hit = false;
+                for (let b = 0; b < bullets.length; b++) {
+                    let bull = bullets[b];
+                    const dist = Math.hypot(bull.x - e.x, bull.y - e.y);
 
-            // 2. Resolve Collisions/Spacing (Pushing)
-            // Iterate form back (newest) to front
-            for (let i = balls.length - 2; i >= 0; i--) {
-                let behind = balls[i + 1];
-                let front = balls[i];
-
-                // If behind catches up to front (dist collision), they are grouped.
-                // Actually, in Zuma, balls stick together.
-                // We enforce min spacing.
-                if (front.dist - behind.dist < CONFIG.BallSpacing) {
-                    behind.dist = front.dist - CONFIG.BallSpacing;
+                    if (dist < hitDist) {
+                        if (bull.type === e.type) {
+                            score += 10;
+                            playSound(600, 'sine');
+                            enemies.splice(i, 1); i--;
+                            bullets.splice(b, 1); b--;
+                            if (score >= TARGET_SCORE) doWin();
+                            hit = true;
+                        } else {
+                            score -= 5;
+                            if (score < 0) score = 0;
+                            playSound(150, 'sawtooth');
+                            bullets.splice(b, 1); b--;
+                            hit = true;
+                        }
+                        break;
+                    }
                 }
-            }
+                if (hit) continue;
 
-            // 3. Lose condition
-            for (let b of balls) {
-                if (b.dist >= pathLength) {
-                    loseGame();
-                    return;
-                }
-            }
-
-            // Update Projectiles
-            for (let i = projectiles.length - 1; i >= 0; i--) {
-                let p = projectiles[i];
-                p.x += Math.cos(p.angle) * CONFIG.ShotSpeed * dt;
-                p.y += Math.sin(p.angle) * CONFIG.ShotSpeed * dt;
-
-                // Bounds
-                if (p.x < 0 || p.x > width || p.y < 0 || p.y > height) {
-                    projectiles.splice(i, 1);
-                    continue;
-                }
-
-                // Collision with Balls
-                let hit = checkCollision(p);
-                if (hit) {
-                    projectiles.splice(i, 1);
+                if (e.y > 600) {
+                    lives--;
+                    playSound(100, 'sawtooth');
+                    enemies.splice(i, 1); i--;
+                    if (lives <= 0) doGameOver();
                 }
             }
 
-            // Update Particles
-            for (let i = particles.length - 1; i >= 0; i--) {
-                let pt = particles[i];
-                pt.life -= 0.05 * dt;
-                pt.x += pt.vx * dt;
-                pt.y += pt.vy * dt;
-                if (pt.life <= 0) particles.splice(i, 1);
-            }
-
-            if (shooter.cooldown > 0) shooter.cooldown -= dt;
-        }
-
-        function spawnBall() {
-            // Pick random pair
-            let pair = ANGLE_PAIRS[Math.floor(Math.random() * ANGLE_PAIRS.length)];
-            // Pick one for the ball
-            let val = Math.random() < 0.5 ? pair[0] : pair[1];
-            balls.push({
-                dist: 0,
-                value: val,
-                color: getColor(val)
+            // Stars
+            stars.forEach(s => {
+                s.y += s.speed * (dt / 16);
+                if (s.y > 600) { s.y = 0; s.x = Math.random() * 600; }
             });
         }
 
-        function checkCollision(p) {
-            for (let i = 0; i < balls.length; i++) {
-                let b = balls[i];
-                let pos = getPointAtDist(b.dist);
+        function spawnEnemy() {
+            const type = Math.floor(Math.random() * 3);
+            const difficultyLevel = Math.floor(score / 30);
+            const speedMultiplier = 1 + (difficultyLevel * 0.1);
+            const speed = (0.4 + Math.random() * 0.3) * speedMultiplier;
 
-                let dx = p.x - pos.x;
-                let dy = p.y - pos.y;
-                let dist = Math.sqrt(dx * dx + dy * dy);
-
-                if (dist < CONFIG.BallRadius * 1.5) {
-                    handleHit(i, p);
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        // CORE LOGIC: SUPPLEMENTARY ANGLES
-        function handleHit(index, p) {
-            let b = balls[index];
-            let sum = b.value + p.value;
-
-            if (sum === 180) {
-                // MATCH!
-                createExplosion(getPointAtDist(b.dist), b.color);
-                playSound(400, 'triangle');
-
-                balls.splice(index, 1);
-                score += 50;
-                updateUI();
-                createFloatText(p.x, p.y, "+50");
-
-                if (score >= CONFIG.WinScore) {
-                    winGame();
-                }
-            } else {
-                // FAIL - Insert
-                createFloatText(p.x, p.y, "FOUT!", '#ff3366');
-                playSound(150, 'sawtooth');
-
-                // Insert logic
-                // We want to insert 'p' into the chain
-                // If we hit the 'front' of ball i, insert at i.
-                // If we hit 'back', insert at i+1.
-                // Simplified: Always insert BEFORE index (pushing it forward)
-
-                let newBall = {
-                    dist: b.dist - CONFIG.BallSpacing,
-                    value: p.value,
-                    color: getColor(p.value)
-                };
-                balls.splice(index + 1, 0, newBall); // Insert "behind" the hit ball visually in spiral?
-                // Spiral goes OUT to IN. 0 is start (out). Max is center.
-                // So higher dist is deeper in.
-                // If we hit ball at dist 100. We want to insert at dist 90 (behind it).
-                // Arrays are ordered by dist? Not necessarily, but my update logic pushes from back.
-                // Actually, balls[0] is USUALLY furthest if we push new ones to end.
-                // Wait, I push new balls to balls array. So balls[last] is dist ~0.
-                // balls[0] is dist ~max.
-                // So if I hit ball i, ball i+1 is BEHIND it (closer to start).
-
-                // Let's verify loop:
-                // for i = balls.length - 2 ... 
-                // behind = balls[i+1], front = balls[i].
-                // Front has higher distance.
-
-                // So if I hit ball i. I want to insert between i and i+1.
-                // newBall dist = b.dist - spacing.
-                // splice at i+1.
-            }
-        }
-
-        function reloadShooter() {
-            // Queue Logic
-            if (!shooter.nextVal) {
-                let pair = ANGLE_PAIRS[Math.floor(Math.random() * ANGLE_PAIRS.length)];
-                let val = Math.random() < 0.5 ? pair[0] : pair[1];
-                shooter.nextVal = val;
-            }
-            shooter.currentVal = shooter.nextVal;
-
-            // Generate new next
-            let pair = ANGLE_PAIRS[Math.floor(Math.random() * ANGLE_PAIRS.length)];
-            shooter.nextVal = Math.random() < 0.5 ? pair[0] : pair[1];
-        }
-
-        function handleClick() {
-            if (!isPlaying) return;
-            if (shooter.cooldown > 0) return;
-
-            shoot();
-        }
-
-        function shoot() {
-            let dx = mouse.x - shooter.x;
-            let dy = mouse.y - shooter.y;
-            let angle = Math.atan2(dy, dx);
-
-            projectiles.push({
-                x: shooter.x,
-                y: shooter.y,
-                angle: angle,
-                value: shooter.currentVal,
-                color: getColor(shooter.currentVal)
+            enemies.push({
+                x: 50 + Math.random() * 500,
+                y: -60,
+                type: type,
+                speed: speed,
+                rotation: Math.random() * 360,
+                rotSpeed: (Math.random() - 0.5) * 1.5,
+                color: "#FFD700" // GOLD
             });
-
-            playSound(600, 'sine');
-            shooter.cooldown = 20; // frames
-            reloadShooter();
         }
 
-        /**
-         * UTILS
-         */
-        function getColor(val) {
-            // Hash val to color index
-            return COLORS[val % COLORS.length];
-        }
-
-        function getPointAtDist(d) {
-            if (d <= 0) return path[0];
-            if (d >= pathLength) return path[path.length - 1];
-
-            let pct = d / pathLength;
-            let idx = Math.floor(pct * (path.length - 1));
-            return path[idx];
-        }
-
-        function createExplosion(pos, color) {
-            for (let i = 0; i < 30; i++) {
-                let angle = Math.random() * Math.PI * 2;
-                let speed = Math.random() * 5 + 2;
-                particles.push({
-                    x: pos.x, y: pos.y,
-                    vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed,
-                    color: color,
-                    life: 1.0
-                });
+        /* ---------------- DRAWING ---------------- */
+        function pathShape(ctx, type, size) {
+            ctx.beginPath();
+            if (type === 0) { // Recht
+                ctx.moveTo(-size / 2, -size / 2);
+                ctx.lineTo(-size / 2, size / 2);
+                ctx.lineTo(size / 2 + 10, size / 2);
+                ctx.closePath();
+            } else if (type === 1) { // Stomp
+                ctx.moveTo(-size, -10);
+                ctx.lineTo(0, 15);
+                ctx.lineTo(size, -10);
+                ctx.closePath();
+            } else { // Scherp
+                const h = size * (Math.sqrt(3) / 2);
+                ctx.moveTo(0, -h / 2);
+                ctx.lineTo(size / 2, h / 2);
+                ctx.lineTo(-size / 2, h / 2);
+                ctx.closePath();
             }
         }
 
-        function createFloatText(x, y, text, color = '#fff') {
-            const el = document.createElement('div');
-            el.className = 'float-text';
-            el.innerText = text;
-            el.style.left = x + 'px';
-            el.style.top = y + 'px';
-            el.style.color = color;
-            document.body.appendChild(el);
-            setTimeout(() => el.remove(), 800);
-        }
-
-        function updateUI() {
-            document.getElementById('score-display').innerText = `Score: ${score}`;
-            let pct = (score / CONFIG.WinScore) * 100;
-            document.getElementById('progress-fill').style.width = pct + "%";
-        }
-
-        /**
-         * DRAW
-         */
         function draw() {
-            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = "#111";
+            ctx.fillRect(0, 0, 600, 600);
 
-            // Draw Path (Track)
-            if (path.length > 1) {
-                ctx.beginPath();
-                ctx.moveTo(path[0].x, path[0].y);
-                for (let i = 1; i < path.length; i += 5) ctx.lineTo(path[i].x, path[i].y);
+            // Stars
+            ctx.fillStyle = "white";
+            ctx.globalAlpha = 0.6;
+            stars.forEach(s => ctx.fillRect(s.x, s.y, s.size, s.size));
+            ctx.globalAlpha = 1;
 
-                // Glow
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = 'rgba(76, 201, 240, 0.3)';
-                ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-                ctx.lineWidth = CONFIG.BallRadius * 2 + 10;
-                ctx.lineCap = 'round';
+            // Enemies
+            enemies.forEach(e => {
+                ctx.save();
+                ctx.translate(e.x, e.y);
+                ctx.rotate(e.rotation * Math.PI / 180);
+
+                ctx.strokeStyle = e.color;
+                ctx.lineWidth = 4;
+                ctx.lineJoin = "round";
+
+                pathShape(ctx, e.type, 40);
+
                 ctx.stroke();
-
-                ctx.shadowBlur = 0;
-                ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-                ctx.lineWidth = CONFIG.BallRadius * 2;
-                ctx.stroke();
-
-                // Inner line
-                ctx.strokeStyle = 'rgba(67, 97, 238, 0.3)';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            }
-
-            // Draw Balls
-            for (let b of balls) {
-                let pos = getPointAtDist(b.dist);
-                drawBall(pos.x, pos.y, b.value, b.color);
-            }
-
-            // Draw Projectiles
-            for (let p of projectiles) {
-                drawBall(p.x, p.y, p.value, p.color);
-            }
-
-            // Draw Particles
-            for (let pt of particles) {
-                ctx.globalAlpha = pt.life;
-                ctx.fillStyle = pt.color;
-                ctx.beginPath();
-                ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(255, 215, 0, 0.2)";
                 ctx.fill();
-                ctx.globalAlpha = 1;
-            }
+                ctx.restore();
+            });
 
-            // Draw Shooter
-            drawShooter();
-        }
-
-        function drawBall(x, y, val, color) {
+            // Player
+            const pColor = AMMO[selectedAmmo].color;
+            ctx.fillStyle = pColor;
             ctx.beginPath();
-            ctx.arc(x, y, CONFIG.BallRadius, 0, Math.PI * 2);
-
-            let grad = ctx.createRadialGradient(x - 10, y - 10, 5, x, y, CONFIG.BallRadius);
-            grad.addColorStop(0, '#fff');
-            grad.addColorStop(0.3, color);
-            grad.addColorStop(1, '#000');
-            ctx.fillStyle = grad;
+            ctx.moveTo(player.x + 25, player.y);
+            ctx.lineTo(player.x + 50, player.y + 50);
+            ctx.lineTo(player.x + 25, player.y + 40);
+            ctx.lineTo(player.x, player.y + 50);
             ctx.fill();
 
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 20px "Segoe UI"';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(val + "°", x, y);
+            // Bullets
+            bullets.forEach(b => {
+                ctx.fillStyle = b.color;
+                ctx.fillRect(b.x - 4, b.y, 8, 16);
+            });
+
+            // Score Canvas Overlay
+            ctx.fillStyle = "white";
+            ctx.font = "bold 20px Segoe UI";
+            ctx.textAlign = "left";
+            ctx.fillText(`SCORE: ${score}`, 20, 40);
+            ctx.textAlign = "right";
+            ctx.fillText("❤️".repeat(lives), 580, 40);
         }
 
-        function drawShooter() {
-            let dx = mouse.x - shooter.x;
-            let dy = mouse.y - shooter.y;
-            shooter.angle = Math.atan2(dy, dx);
-
-            ctx.save();
-            ctx.translate(shooter.x, shooter.y);
-            ctx.rotate(shooter.angle);
-
-            // Cannon
-            ctx.fillStyle = '#444';
-            ctx.beginPath();
-            ctx.moveTo(0, -15);
-            ctx.lineTo(40, 0);
-            ctx.lineTo(0, 15);
-            ctx.fill();
-
-            ctx.restore();
-
-            // Current Ball
-            if (isPlaying) {
-                drawBall(shooter.x, shooter.y, shooter.currentVal, getColor(shooter.currentVal));
-
-                // Next Ball Indicator (Small)
-                let nbVal = shooter.nextVal;
-                if (nbVal) {
-                    let nbColor = getColor(nbVal);
-                    ctx.beginPath();
-                    ctx.arc(shooter.x - 50, shooter.y + 50, 15, 0, Math.PI * 2);
-                    ctx.fillStyle = nbColor;
-                    ctx.fill();
-                    ctx.fillStyle = '#fff';
-                    ctx.font = '12px Arial';
-                    ctx.fillText(nbVal, shooter.x - 50, shooter.y + 50);
-                    ctx.fillText("NEXT", shooter.x - 50, shooter.y + 75);
-                }
-            }
+        /* ---------------- END ---------------- */
+        function doWin() {
+            gameRunning = false;
+            logData(score);
+            document.getElementById('screen-win').classList.remove('hidden');
         }
 
-        /**
-         * AUDIO (Simple Synth)
-         */
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        const actx = new AudioCtx();
+        function doGameOver() {
+            gameRunning = false;
+            logData(score);
+            document.getElementById('score-loss').innerText = score;
+            document.getElementById('screen-gameover').classList.remove('hidden');
+        }
 
+        function logData(finalScore) {
+            const url = `${LOG_URL}?action=submit&code=${encodeURIComponent(playerName)}&quizId=Game2_Triangles&score=${finalScore}&total=${TARGET_SCORE}`;
+            fetch(url, { mode: 'no-cors' }).catch(e => console.error(e));
+        }
+
+        /* ---------------- AUDIO ---------------- */
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSound(freq, type) {
-            if (actx.state === 'suspended') actx.resume();
-            const osc = actx.createOscillator();
-            const gain = actx.createGain();
-            osc.type = type || 'sine';
-            osc.frequency.setValueAtTime(freq, actx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(freq / 2, actx.currentTime + 0.1);
-            gain.gain.setValueAtTime(0.1, actx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, actx.currentTime + 0.1);
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
             osc.connect(gain);
-            gain.connect(actx.destination);
+            gain.connect(audioCtx.destination);
             osc.start();
-            osc.stop(actx.currentTime + 0.1);
+            osc.stop(audioCtx.currentTime + 0.2);
         }
-
     </script>
 </body>
 
